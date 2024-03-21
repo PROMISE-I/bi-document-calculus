@@ -1,14 +1,13 @@
 port module Main exposing (..)
 
-import View
+import BDView exposing(view)
 import Browser exposing (..)
 import Html exposing (Html)
-import Model exposing (Msg(..), Model, Mode(..))
-import Syntax exposing (HoleName(..), Value(..))
+import BDModel exposing (Msg(..), Model, Mode(..))
+import BDSyntax exposing (Value(..))
 import String exposing (left)
-import Parser_ exposing (parseHoleName)
-import Controller exposing (evalCodeToModel)
-import UnEval exposing (updateContext, updateCode)
+import BDController exposing (evalCodeToModel)
+import BDUpdate exposing (updateCode)
 
 main : Program () Model Msg
 main =
@@ -21,7 +20,7 @@ main =
 
 
 init : () -> ( Model, Cmd Msg )
-init _ = (Model.initModel, Cmd.none)
+init _ = (BDModel.initModel, Cmd.none)
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -30,7 +29,7 @@ update msg model =
         SaveCode newCode ->
             let
                 newModel =
-                    evalCodeToModel newCode model.holeBindings
+                    evalCodeToModel newCode 
 
                 cmd =
                     if newModel.mode == HTML then
@@ -52,67 +51,30 @@ update msg model =
             ({model | output = nop
                     , isOutputChange = flag}, cmd)
 
-        ContextChange index newVal ->
-            let 
-                context =
-                    updateContext index newVal model
-
-            in
-            case context of
-                [] ->
-                    ({model | editContextItem = (index, newVal) 
-                            , isOutputChange = True }, setAceRed ())
-                _ ->
-                    ({model | context = context
-                            , isOutputChange = True
-                            , editContextItem = (-1, "") }, setAceRed ())
-        
-        ChangeCurrentHole selected ->
-            ({model | currentContext = 
-                        case (parseHoleName selected) of
-                            Result.Ok hn -> hn
-                            Result.Err _ -> HOri -1
-                    , path = []
-            }, Cmd.none)
-
-        ChangePath (holename, index, varname) ->
-            ({ model | path = model.path++[(holename, index, varname)]
-            }, Cmd.none)
-
         Preview ->
             let
-                (newHB, newCode) =
-                    updateCode model
-
+                newCode = updateCode model
             in
             ({model | code = newCode
-                    , holeBindings = newHB
             }, sendCode (newCode, False))
 
-        Update -> -- 反向执行
+        Update ->
             let
-                (newHB, newCode) =
-                    updateCode model
+                newCode = updateCode model
             in
             ({model | code         = newCode
                     , codeBackup   = newCode
-                    , holeBindings = newHB
-                    , hbBackup     = newHB
                     , isOutputChange = False
             }, sendCode (newCode, False))
 
 
         Revert ->
             ({model | code = model.codeBackup
-                    , holeBindings = model.hbBackup
             }, sendCode (model.codeBackup, model.isOutputChange))
-
-        ClearHB ->
-            ({model | holeBindings = []}, Cmd.none)
 
 
 view : Model -> Html Msg
-view = View.view
+view = BDView.view
 
 
 port sendCode : (String, Bool) -> Cmd msg
@@ -121,6 +83,8 @@ port setAceRed : () -> Cmd msg
 port setConsoleVisible : String -> Cmd msg
 port receiveCode : (String -> msg) -> Sub msg
 port receiveOutput : (String -> msg) -> Sub msg
+
+port setConsoleLog : (String) -> Cmd msg
 
 
 subscriptions : Model -> Sub Msg

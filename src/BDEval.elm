@@ -1,8 +1,8 @@
 module BDEval exposing (..)
 
-import Model exposing (..)
-import Syntax exposing (..)
-import LangUtils exposing (..)
+import BDModel exposing (..)
+import BDSyntax exposing (..)
+import BDLangUtils exposing (..)
 import Round
 
 eval :  VEnv -> Expr -> Value
@@ -237,7 +237,7 @@ eval venv expr =
                             let 
                                 res = 
                                     matchCase val branch 
-                            in
+                            in 
                             case res.venvm of
                                 [(_, VError info)] -> VError info
                                 _ -> eval (res.venvm++venv) res.ei 
@@ -270,7 +270,7 @@ eval venv expr =
                     eval venv e 
 
                 sv =
-                    print v1 |> Tuple.first
+                    print v1
             in
                 String.toList sv |> stringToVCons
             

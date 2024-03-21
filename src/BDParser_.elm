@@ -1,11 +1,10 @@
-module Parser_ exposing (..)
+module BDParser_ exposing (..)
 
 import Set
 import Parser exposing (..)
-import Syntax exposing (..)
+import BDSyntax exposing (..)
 import Parser.Extras exposing (..)
 import Parser.Expression exposing (..)
-import LangUtils exposing (removeIndexFromVenv)
 
 
 mSpaces : Parser String
@@ -272,13 +271,6 @@ branch : Parser Branch
 branch = buildExpressionParser branchOp sinBranch
 
 
-hole : Parser Expr
-hole =
-    succeed (\s -> EHole ([s], defaultId) (HInter 0))
-        |. keyword "_"
-        |= mSpaces
-
-
 parens_ : Parser Expr
 parens_ =
     succeed (\s1 e s2 -> EParens ([s1, s2], defaultId) e)
@@ -344,7 +336,6 @@ aexpr =
     , lazy (\_ -> let_)
     , lazy (\_ -> letrec)
     , caseOf
-    , hole
     , backtrackable nil
     , list
     , string
@@ -661,7 +652,6 @@ value context =
     , vFalse
     , backtrackable vNil
     , lazy (\_ -> (vList context))
-    , vHole context
     , backtrackable (vBtuple context)
     , vTtuple context
     , vChar
@@ -826,76 +816,3 @@ stringToValue s =
         
         c::cs ->
             VCons vsId (VChar c) (stringToValue cs)
-
-
-findContext : List Value -> HoleName -> Value
-findContext context hn =
-    case context of
-        [] -> VHole hn []
-
-        (IndexedHole hn_ venv) :: ct ->
-            if hn_ == hn
-            then (VHole hn (removeIndexFromVenv venv))
-            else findContext ct hn
-
-        _ -> VError "Impossible"
-
-
-vHole : List Value -> Parser Value
-vHole context =
-    succeed (findContext context)
-        |. symbol "{"
-        |. spaces
-        |= holename 
-        |. spaces
-        |. symbol "}"
-        |.spaces
-
-
-parseHoleName : String -> Result (List DeadEnd) HoleName
-parseHoleName s =
-    run (holename |. end) s
-
-
-hterm : Parser HoleName
-hterm =
-    oneOf
-    [ backtrackable hinst
-    , hinter
-    , hid
-    ]
-
-
-hinter : Parser HoleName
-hinter =
-    succeed HInter
-        |. symbol "*"
-        |. spaces
-        |= int
-
-
-hid : Parser HoleName
-hid =
-    succeed HId
-        |= int
-
-
-hinst : Parser HoleName
-hinst =
-    succeed (\n1 n2 -> HInst (HOri n1) n2)
-        |= int
-        |. spaces
-        |. symbol "_"
-        |. spaces
-        |= int
-
-
-hfieldOp : OperatorTable HoleName
-hfieldOp = [[Infix (succeed HField
-                        |. symbol "·"
-                        |. spaces)
-            AssocLeft]]
-
-
-holename : Parser HoleName
-holename = buildExpressionParser hfieldOp hterm

@@ -22,3 +22,7 @@ app.ports.setConsoleVisible.subscribe(function(message) {
     consoleArea.value = message;
     outputArea.appendChild(consoleArea);
 });
+
+app.ports.setConsoleLog.subscribe(function(message){
+    console.log(message);
+}) ;

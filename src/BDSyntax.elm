@@ -1,5 +1,4 @@
 module BDSyntax exposing (..)
-import Syntax exposing (Expr)
 
 type alias Info = String
 
@@ -125,13 +124,6 @@ type Pattern
 type alias UnEvalRes = 
     { venv : VEnv
     , expr : Expr
-    }
-
-type alias TryUnevalRes =
-    { ei     : Expr
-    , venv   : VEnv
-    , choice : Int
-    , pi     : Pattern
     }
 
 type alias MatchCaseRes =

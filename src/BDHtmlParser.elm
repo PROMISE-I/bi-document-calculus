@@ -1,13 +1,12 @@
-module HtmlParser exposing (..)
+module BDHtmlParser exposing (..)
 
 import List exposing (map, foldr)
-import Syntax exposing (Value(..))
-import Parser_ exposing (parseHoleName, findContext)
+import BDSyntax exposing (Value(..))
 import Html.Parser exposing (run, Node(..), Attribute)
 import String exposing (toList, trim, fromList, split, left, dropRight)
 
-parseHtml : String -> List Value -> Value
-parseHtml s context =
+parseHtml : String -> Value
+parseHtml s =
     let
         parseRes =
             run s
@@ -16,7 +15,7 @@ parseHtml s context =
         Result.Ok res ->
             case res of
                 node :: [] ->
-                    nodeToValue node context
+                    nodeToValue node
 
                 _ ->
                     VError "There cannot be two or more or 0 root nodes."
@@ -25,22 +24,22 @@ parseHtml s context =
             VError "Parse Html Error."
 
 
-nodeToValue : Node -> List Value -> Value
-nodeToValue node context =
+nodeToValue : Node -> Value
+nodeToValue node =
         case node of
             Element s attrList childs ->
                 case s of
                     "span" ->
                         case childs of
                             [Text c] ->
-                                trim c |> toList |> stringToVCons context
+                                trim c |> toList |> stringToVCons
 
                             _ ->
                                 VError "Parse Hole Error: 01."
                     _ ->
                         let
                             vChilds =
-                                parseChilds childs context
+                                parseChilds childs
                         in
                         case attrList of
                             [] ->
@@ -49,41 +48,41 @@ nodeToValue node context =
                             ("style", pro) :: [] ->
                                 VHtml s (pro    
                                             |> split ";"
-                                            |> parseStyle context) 
+                                            |> parseStyle) 
                                     (VNil 0) vChilds
                             
                             ("style", pro) :: al ->
                                 VHtml s (pro
                                         |> split ";"
-                                        |> parseStyle context) 
-                                    (parseOtherPro al context) vChilds
+                                        |> parseStyle) 
+                                    (parseOtherPro al) vChilds
 
                             al -> 
                                 VHtml s (VNil 0)
-                                (parseOtherPro al context) vChilds
+                                (parseOtherPro al) vChilds
 
             Text s ->
-                stringToVCons context <| toList s
+                stringToVCons <| toList s
             
             _ ->
                 VError "An error occurred in the node constructor."
 
 
-parseChilds : List Node -> List Value -> Value
-parseChilds childs context =
+parseChilds : List Node -> Value
+parseChilds childs =
     case childs of
         [] -> VNil 0
 
         c :: cds ->
-            VCons 0 (nodeToValue c context) (parseChilds cds context)
+            VCons 0 (nodeToValue c) (parseChilds cds)
 
 
-parseStyle : List Value -> List String -> Value
-parseStyle context pro =
+parseStyle : List String -> Value
+parseStyle pro =
     case pro of
         s :: ps ->
             if (trim s |> left 1) == "{" then
-                s |> trim |> toList |> stringToVCons context
+                s |> trim |> toList |> stringToVCons
             else
                 let
                     nameAndValue =
@@ -92,12 +91,12 @@ parseStyle context pro =
                     proItem =
                         case nameAndValue of
                             n :: val :: [] ->
-                                VCons 0 (n |> trim |> toList |> stringToVCons context)
+                                VCons 0 (n |> trim |> toList |> stringToVCons)
                                         (trim val 
                                         |> split " "
                                         |> map trim
                                         |> map toList 
-                                        |> map (stringToVCons context)
+                                        |> map stringToVCons
                                         |> foldr (VCons 0) (VNil 0))
 
                             _ ->
@@ -105,59 +104,44 @@ parseStyle context pro =
                 in
                 case proItem of
                     VError _ ->
-                        parseStyle context ps
+                        parseStyle ps
                     
                     _ ->
-                        VCons 0 proItem (parseStyle context ps)
+                        VCons 0 proItem (parseStyle ps)
 
         [] -> VNil 0
 
 
-stringToVCons :  List Value -> List Char -> Value
-stringToVCons context lc =
+stringToVCons :  List Char -> Value
+stringToVCons lc =
     case lc of
         [] ->
             VNil 1
 
-        c :: cs ->
-            case c of
-                '{' ->
-                    let
-                        res =
-                            parseHoleName <| dropRight 1 <|fromList cs
-                    in
-                    case res of
-                        Result.Ok hn ->
-                            findContext context hn
-                        
-                        Result.Err _ ->
-                            VError "Parse Hole Error: 02."
-
-                _ ->
-                    VCons 1 (VChar c) (stringToVCons context cs)
+        c :: cs ->  VCons 1 (VChar c) (stringToVCons cs)
 
 
-parseOtherPro : List Attribute -> List Value -> Value
-parseOtherPro al context =
+parseOtherPro : List Attribute -> Value
+parseOtherPro al =
     case al of
         ("contenteditable", _) :: al_ ->
-            parseOtherPro al_ context
+            parseOtherPro al_ 
 
         (name, value) :: al_ ->
             if (trim name |> left 1) == "{" then
                 let
                     proItem =
-                        name |> trim |> toList |> stringToVCons context
+                        name |> trim |> toList |> stringToVCons 
                 in
-                    VCons 0 proItem (parseOtherPro al_ context)
+                    VCons 0 proItem (parseOtherPro al_)
             else
                 let
                     proItem =
-                        VCons 0 (name |> trim |> toList |> stringToVCons context)
-                        (VCons 0 (value |> trim |> toList |> stringToVCons context)
+                        VCons 0 (name |> trim |> toList |> stringToVCons)
+                        (VCons 0 (value |> trim |> toList |> stringToVCons)
                             (VNil 0))
                 in
-                    VCons 0 proItem (parseOtherPro al_ context)
+                    VCons 0 proItem (parseOtherPro al_)
         
         [] ->
             VNil 0
