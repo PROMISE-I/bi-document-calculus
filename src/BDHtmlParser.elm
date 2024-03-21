@@ -3,7 +3,7 @@ module BDHtmlParser exposing (..)
 import List exposing (map, foldr)
 import BDSyntax exposing (Value(..))
 import Html.Parser exposing (run, Node(..), Attribute)
-import String exposing (toList, trim, fromList, split, left, dropRight)
+import String exposing (toList, trim, split, left)
 
 parseHtml : String -> Value
 parseHtml s =
