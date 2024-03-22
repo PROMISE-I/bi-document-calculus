@@ -944,7 +944,7 @@ changeWsForList ws expr =
             ENil ws
 
         ECons _ e1 e2 ->
-            ECons ws e1 e2
+            ECons ws e1 (changeWsForList ws e2)
 
         _ ->
             EError "Impossible!"
@@ -1125,3 +1125,7 @@ printChilds childs =
         
         _ ->
             "Print Childs Error."
+
+join : Expr -> Expr -> Expr
+join elim xs = 
+    EError ""
