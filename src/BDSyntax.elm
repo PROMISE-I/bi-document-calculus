@@ -92,6 +92,8 @@ type Template
 type alias TplCtx = Int
 
 -- string template context & article template context
+defaultCtx : TplCtx
+defaultCtx = 0
 stctx : TplCtx
 stctx = 1
 atctx : TplCtx
