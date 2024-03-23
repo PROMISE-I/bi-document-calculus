@@ -5,6 +5,8 @@ import Parser exposing (..)
 import BDSyntax exposing (..)
 import Parser.Extras exposing (..)
 import Parser.Expression exposing (..)
+import List exposing (member)
+import Html exposing (b)
 
 
 mSpaces : Parser String
@@ -141,6 +143,11 @@ varName =
             , "true"
             , "false"
             , "toString"
+            -- reserved for template
+            , "set"
+            , "endif"
+            , "for"
+            , "endfor"
             ]
     }
 
@@ -340,6 +347,7 @@ aexpr =
     , list
     , string
     , char
+    , lazy (\_ -> strTpl)
     , html
     , tostr
     ]
@@ -416,6 +424,227 @@ cons =
         |. symbol "::"
         |= mSpaces
 
+
+-- Expression Parser for Template
+strTpl : Parser Expr
+strTpl = 
+    succeed (\tb -> StrTpl (replaceTplCtx tb stctx))
+        |. symbol "{#"
+        |= tplBody stctx
+        |. symbol "#}"
+
+
+tplBody : TplCtx -> Parser Template
+tplBody ctx = 
+    Parser.map
+        tplPartsToTemplate
+        (loop [] <| tplBodyHelp ctx)
+
+    -- For Debug
+    --
+    -- Parser.map 
+    --     (\tp -> TCons defaultCtx tp (TNil defaultCtx))
+    --     tplPart
+    
+
+tplBodyHelp : TplCtx -> List TplPart -> Parser (Step (List TplPart) (List TplPart))
+tplBodyHelp ctx revTplParts = 
+    oneOf
+        [ succeed (\tp -> Loop (tp :: revTplParts))
+            |= tplPart ctx
+        , succeed ()
+            |> map (\_ -> Done (List.reverse revTplParts))
+        ]
+
+tplPartsToTemplate : List TplPart -> Template
+tplPartsToTemplate tps =
+    case tps of
+        [] -> TNil defaultCtx
+        tp :: rest -> TCons defaultCtx tp (tplPartsToTemplate rest)
+
+
+tplPart : TplCtx -> Parser TplPart
+tplPart ctx = 
+    oneOf 
+        [ backtrackable tplStr
+        , backtrackable tplExpr
+        , backtrackable tplSet
+        , backtrackable <| tplIf ctx
+        , backtrackable <| tplForeach ctx
+        ]
+
+tplStrStops : List String
+tplStrStops = ["{{", "{%", "#}", "*}"]
+
+stopParser : List String -> Parser ()
+stopParser stops = 
+    oneOf (List.map (\stop -> symbol stop) stops)
+
+tplStrChompCallBack : List String -> Int -> Result (List Parser.DeadEnd) () -> Parser ()
+tplStrChompCallBack stops acc result =
+    case result of
+        Ok _ -> 
+            -- meet stop words
+            case acc of
+                0 -> Parser.problem ""
+                _ -> Parser.succeed()
+            
+        Err _ -> 
+            -- chomp one char, and continue check is stop
+                succeed ()
+                    |. chompIf (\_ -> True)
+                    |. runInnerParser (stopParser stops) (tplStrChompCallBack stops (acc + 1))
+
+
+tplStr : Parser TplPart
+tplStr = 
+    succeed (\s -> s 
+                |> String.toList
+                |> stringToExpr ([], esQuo)
+                |> TplStr)
+        |=  getChompedStringUntilAny tplStrStops
+
+getChompedStringUntilAny : List String -> Parser String
+getChompedStringUntilAny stops = 
+    -- For debug
+    --
+    -- oneOf 
+    --     [ getChompedString (chompUntil "{{")
+    --     , getChompedString (chompUntil "{%")
+    --     , getChompedString (chompUntil "#}")
+    --     , getChompedString (chompUntil "*}")
+    --     ]
+    runInnerParser (stopParser stops) (tplStrChompCallBack stops 0) 
+        |> getChompedString
+
+
+tplExpr : Parser TplPart
+tplExpr = 
+    succeed (\e -> TplExpr e)
+        |. symbol "{{"
+        |= lazy (\_ -> expr)
+        |. symbol "}}"
+
+
+tplSet : Parser TplPart
+tplSet = 
+    succeed (\s1 s2 p s3 s4 e s5 -> 
+                TplSet ([s1, s2, s3, s4, s5], defaultId) p e)
+        |. symbol "{%"
+        |= mSpaces
+        |. symbol "set"
+        |= mSpaces
+        |= lazy (\_ -> pattern)
+        |= mSpaces
+        |. symbol "="
+        |= mSpaces
+        |= lazy (\_ -> expr)
+        |= mSpaces
+        |. symbol "%}"
+
+
+tplIf : TplCtx -> Parser TplPart
+tplIf ctx =
+    succeed (\((ss1, _), e, tIf) 
+              ((ss2, _), tElse)
+              (ss3, _) ->
+                TplIf 
+                    (ss1 ++ ss2 ++ ss3, defaultId) 
+                    e 
+                    (replaceTplCtx tIf ctx)
+                    (replaceTplCtx tElse ctx)
+            )
+        |= tplIfBody ctx
+        |= tplElseBody ctx
+        |= tplIfEnd
+
+tplIfBody : TplCtx -> Parser (WS, Expr, Template)
+tplIfBody ctx = 
+    succeed (\s1 s2 e s3 s4 t -> 
+                (([s1, s2, s3, s4], defaultId), e, t)
+            )
+        |. symbol "{%"
+        |= mSpaces
+        |. symbol "if"
+        |= mSpaces 
+        |= lazy (\_ -> expr)
+        |= mSpaces
+        |. symbol "then"
+        |= mSpaces
+        |. symbol "%}"
+        |= lazy (\_ -> tplBody ctx)
+
+tplElseBody : TplCtx -> Parser (WS, Template)
+tplElseBody ctx = 
+    succeed (\s1 s2 t -> 
+                (([s1, s2], defaultId), t)
+            )
+        |. symbol "{%"
+        |= mSpaces
+        |. symbol "else"
+        |= mSpaces
+        |. symbol "%}"
+        |= lazy (\_ -> tplBody ctx)
+
+tplIfEnd : Parser WS
+tplIfEnd = 
+    succeed (\s1 s2 -> 
+                ([s1, s2], defaultId)
+            )
+        |. symbol "{%"
+        |= mSpaces
+        |. symbol "endif"
+        |= mSpaces
+        |. symbol "%}"
+
+
+tplForeach : TplCtx -> Parser TplPart
+tplForeach ctx = 
+    succeed (\((ss1, _), (p, e, t)) (ss2, _) -> 
+                TplForeach 
+                    (ss1 ++ ss2, defaultId) 
+                    p 
+                    e 
+                    (replaceTplCtx t ctx)
+            )
+        |= tplForeachBody ctx
+        |= tplForeachEnd
+
+tplForeachBody : TplCtx -> Parser (WS, (Pattern, Expr, Template))
+tplForeachBody ctx = 
+    succeed (\s1 s2 p s3 s4 e s5 t -> 
+                (([s1, s2, s3, s4, s5], defaultId), (p, e, t))
+            )
+        |. symbol "{%"
+        |= mSpaces
+        |. symbol "for"
+        |= mSpaces
+        |= lazy (\_ -> pattern)
+        |= mSpaces
+        |. symbol "in"
+        |= mSpaces
+        |= lazy (\_ -> expr)
+        |= mSpaces
+        |. symbol "%}"
+        |= lazy (\_ -> tplBody ctx)
+
+tplForeachEnd : Parser WS
+tplForeachEnd = 
+    succeed (\s1 s2 ->
+                ([s1, s2], defaultId)
+            )
+        |. symbol "{%"
+        |= mSpaces
+        |. symbol "endfor"
+        |= mSpaces
+        |. symbol "%}"
+
+replaceTplCtx : Template -> TplCtx -> Template
+replaceTplCtx t ctx =
+    case t of
+        TCons _ tPart restTemplate -> TCons ctx tPart (replaceTplCtx restTemplate ctx)
+
+        TNil _ -> TNil ctx
 
 operators : OperatorTable Expr
 operators =
@@ -816,3 +1045,56 @@ stringToValue s =
         
         c::cs ->
             VCons vsId (VChar c) (stringToValue cs)
+
+
+-- For Debug
+
+log : String -> Parser a -> Parser a
+log message parser =
+    succeed ()
+        |> andThen
+            (\() ->
+                let
+                    _ =
+                        Debug.log "starting" message
+                in
+                succeed
+                    (\source offsetBefore parseResult offsetAfter ->
+                        let
+                            _ =
+                                Debug.log "-----------------------------------------------" message
+
+                            _ =
+                                Debug.log "source         " source
+                            
+                            _ = Debug.log "offset before  " offsetBefore
+
+                            _ =
+                                Debug.log "chomped string " (String.slice offsetBefore offsetAfter source)
+
+                            _ =
+                                Debug.log "parsed result  " parseResult
+                        in
+                        parseResult
+                    )
+                    |= getSource
+                    |= getOffset
+                    |= parser
+                    |= getOffset
+            )
+
+
+runInnerParser : Parser a -> (Result (List Parser.DeadEnd) a -> Parser b) -> Parser b
+runInnerParser parser callback = 
+    Parser.getSource 
+        |> Parser.andThen
+            (
+                \source -> 
+                    Parser.getOffset
+                        |> Parser.andThen
+                            (
+                                \offset -> 
+                                    Parser.run parser (String.dropLeft offset source)
+                                        |> callback
+                            )
+            )
