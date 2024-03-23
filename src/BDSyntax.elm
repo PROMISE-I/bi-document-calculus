@@ -1,7 +1,7 @@
 module BDSyntax exposing (..)
 
-import Html.Attributes exposing (default)
-import Parser exposing (number)
+import Html.Attributes exposing (..)
+import Parser exposing (..)
 
 type alias Info = String
 
@@ -60,12 +60,6 @@ caseId = 1
 ifId : number
 ifId = 2
 
--- string template context & article template context
-stctx : number
-stctx = 1
-atctx : number
-atctx = 2
-
 type Expr
     = EParens WS Expr
     | EVar WS String
@@ -92,8 +86,16 @@ type Expr
     | EError Info
 
 type Template
-    = TCons Int TplPart Template
-    | TNil Int
+    = TCons TplCtx TplPart Template
+    | TNil TplCtx
+
+type alias TplCtx = Int
+
+-- string template context & article template context
+stctx : TplCtx
+stctx = 1
+atctx : TplCtx
+atctx = 2
 
 type TplPart
     = TplStr Expr
@@ -101,7 +103,7 @@ type TplPart
     | TplSet WS Pattern Expr
     | TplIf WS Expr Template Template
     | TplForeach WS Pattern Expr Template
-    | Splice Expr
+    | TplSplice Expr
 
 type Bop = Add | Sub | Mul | Div | Eq | Lt | Gt | Le | Ge | And | Or | Cat | DDiv
 type Uop = Not | Neg
