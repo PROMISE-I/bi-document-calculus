@@ -162,12 +162,86 @@ desugarTemplate t =
             else 
                 deusgarArticleTemplate t
 
-        TNil _ -> ENil defaultWS
+        TNil _ -> ENil (["", " "], eoAddFromEmp)
 
 
 desugarStringTemplate : Template -> Expr
 desugarStringTemplate t = 
-    EError ""
+    case t of 
+        TCons ctx tPart restTemplate ->
+            let
+                desugaredRestTemplate = desugarStringTemplate restTemplate
+            in
+            
+            case tPart of
+                TplStr e -> ECons ([" "], eoElm) e desugaredRestTemplate
+
+                TplExpr e -> ECons ([" "], eoElm) e desugaredRestTemplate
+
+                TplSet ws p e -> ELet ws p e desugaredRestTemplate
+
+                TplIf ws e t1 t2 -> 
+                    let
+                        desugaredT1 = desugarStringTemplate t1
+                        desugaredT2 = desugarStringTemplate t2
+                        ifSpliceT = 
+                            TCons 
+                                ctx
+                                (
+                                    TplSplice
+                                        (
+                                            ECase 
+                                                ws
+                                                e
+                                                (
+                                                    BCom 
+                                                        defaultWS 
+                                                        (BSin defaultWS (PTrue defaultWS) desugaredT1)
+                                                        (BSin defaultWS (PFalse defaultWS) desugaredT2)
+                                                )
+                                        )
+                                )
+                                restTemplate
+                    in                    
+                        desugarStringTemplate ifSpliceT
+                    
+                TplForeach ws p e t1 -> 
+                    let
+                        desugaredT1 = desugarStringTemplate t1
+                        foreachSpliceT = 
+                            TCons 
+                                ctx
+                                (
+                                    TplSplice
+                                        (
+                                            EApp
+                                                ws
+                                                eVarFlatten
+                                                (
+                                                    EApp
+                                                        defaultWS
+                                                        (
+                                                            EApp 
+                                                                defaultWS 
+                                                                eVarMap
+                                                                (ELam defaultWS p desugaredT1)
+                                                        )
+                                                        e
+                                                )
+                                        )
+                                )
+                                restTemplate
+                    in
+                        desugarStringTemplate foreachSpliceT
+                    
+                TplSplice e -> 
+                    EApp
+                        defaultWS
+                        (EApp defaultWS eVarAppend e)
+                        desugaredRestTemplate
+                    
+
+        TNil _ -> ENil ([], eoElm)
 
 
 deusgarArticleTemplate : Template -> Expr
