@@ -7,6 +7,7 @@ import BDLangUtils exposing (..)
 import BDEval exposing (eval)
 import BDHtmlParser exposing (parseHtml)
 import BDParser_ exposing (parse, parseVal)
+import BDDesugar exposing (desugarWithPreclude)
 
 
 updateCode : Model -> Code
@@ -37,7 +38,8 @@ updateCode model =
     (_, EError _) ->
         "Parse Code Error."
     _ -> 
-        let expr = processAfterParse pCode []
+        let desugaredPCode = desugarWithPreclude pCode
+            expr = processAfterParse desugaredPCode []
             upRes = uneval [] expr pOutput
             expr_ = processBeforePrint upRes.expr []
             newCode = printAST expr_
@@ -449,17 +451,21 @@ uneval venv expr newv =
                             case ne of
                                 ECons _ e1 e2 ->
                                     case ws of
+                                        -- correct ws for eoAddFromEmp
                                         ([_, ws2], 5) ->
                                             changeWsForList ([" "], eoElm) e2
                                                 |> ECons ([" ", ws2], eoSquare) e1
                                         
+                                        -- correct ws for eoElm
                                         (_, 1) ->
                                             changeWsForList ([], eoElm) ne
 
+                                        -- correct ws for esQuo
                                         ([ws1], 3) ->
                                             changeWsForList ([" "], esElm) e2
                                                 |> ECons ([ws1], esQuo) e1
                                                 
+                                        -- correct ws for esElm
                                         (_, 4) ->
                                             changeWsForList ([], esElm) ne
 

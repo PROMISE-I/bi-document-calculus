@@ -4,6 +4,8 @@ module BDLangUtils exposing (..)
 import BDUtils exposing (..)
 import BDSyntax exposing (..)
 import Debug exposing (toString)
+import List exposing (map)
+import Html.Attributes exposing (default)
 
 printAST : Expr -> String
 printAST expr =
@@ -1126,6 +1128,277 @@ printChilds childs =
         _ ->
             "Print Childs Error."
 
-join : Expr -> Expr -> Expr
-join elim xs = 
-    EError ""
+
+appendName = "append"
+flattenName = "flatten"
+mapName = "map"
+joinName = "join"
+
+-- pattern of primitive operation of list
+pAppend = PVar defaultWS appendName
+pFlatten = PVar defaultWS flattenName
+pMap = PVar defaultWS mapName
+pJoin = PVar defaultWS joinName
+
+-- eVar of primitive operation of list
+eVarAppend = EVar defaultWS appendName
+eVarFlatten = EVar defaultWS flattenName
+eVarMap = EVar defaultWS mapName
+eVarJoin = EVar defaultWS joinName
+
+
+appendBody : Expr
+appendBody = 
+    let
+        xsStr = "xs"
+        ysStr = "ys"
+        headStr = "head"
+        tailStr = "tail"
+
+        -- Pattern
+        pXs = PVar defaultWS xsStr
+        pYs = PVar defaultWS ysStr
+        pHead = PVar defaultWS headStr
+        pTail = PVar defaultWS tailStr
+        
+        -- EVar
+        eVarXs = EVar defaultWS xsStr
+        eVarYs = EVar defaultWS ysStr
+        eVarHead = EVar defaultWS headStr
+        eVarTail = EVar defaultWS tailStr
+
+    in
+        ELam    
+            defaultWS 
+            pXs 
+            (
+                ELam 
+                    defaultWS 
+                    pYs 
+                    (
+                        ECase 
+                            defaultWS 
+                            eVarXs 
+                            (
+                                BCom 
+                                    defaultWS  
+                                    (BSin defaultWS (PNil defaultWS) eVarYs)
+                                    (
+                                        BSin 
+                                            defaultWS 
+                                            (PCons defaultWS pHead pTail)
+                                            (
+                                                ECons
+                                                    defaultWS 
+                                                    eVarHead
+                                                    (
+                                                        EApp 
+                                                            defaultWS
+                                                            (EApp defaultWS eVarAppend eVarTail)
+                                                            eVarYs
+                                                    )
+                                            )
+                                    )  
+                            )
+                    )
+            )
+
+flattenBody : Expr
+flattenBody = 
+    let
+        xssStr = "xss"
+        xsStr = "xs"
+        yssStr = "yss"
+
+        pXss = PVar defaultWS xssStr
+        pXs = PVar defaultWS xsStr
+        pYss = PVar defaultWS yssStr
+
+        eVarXss = EVar defaultWS xssStr
+        eVarXs = EVar defaultWS xsStr
+        eVarYss = EVar defaultWS yssStr
+    
+    in
+        ELam 
+            defaultWS
+            pXss 
+            (
+                ECase 
+                    defaultWS
+                    eVarXss
+                    (
+                        BCom 
+                            defaultWS
+                            (BSin defaultWS (PNil defaultWS) (ENil ([], eoElm)))
+                            (
+                                BSin 
+                                    defaultWS
+                                    (PCons defaultWS pXs pYss)
+                                    (
+                                        EApp
+                                            defaultWS
+                                            (EApp defaultWS eVarAppend eVarXs)
+                                            (EApp defaultWS eVarFlatten eVarYss)
+                                    )
+                            )
+                    )
+            )
+
+mapBody : Expr
+mapBody = 
+    let
+        fStr = "f"
+        xsStr = "xs"
+        headStr = "head"
+        tailStr = "tail"
+
+        pF = PVar defaultWS fStr
+        pXs = PVar defaultWS xsStr
+        pHead = PVar defaultWS headStr
+        pTail = PVar defaultWS tailStr
+
+        eVarF = EVar defaultWS fStr
+        eVarXs = EVar defaultWS xsStr
+        eVarHead = EVar defaultWS headStr
+        eVarTail = EVar defaultWS tailStr
+
+    in
+        ELam 
+            defaultWS
+            pF 
+            (
+                ELam 
+                    defaultWS
+                    pXs
+                    (
+                        ECase  
+                            defaultWS
+                            eVarXs
+                            (
+                                BCom
+                                    defaultWS
+                                    (BSin defaultWS (PNil defaultWS) (ENil ([], eoElm)))
+                                    (
+                                        BSin
+                                            defaultWS
+                                            (PCons defaultWS pHead pTail)
+                                            (
+                                                ECons
+                                                    defaultWS
+                                                    (EApp defaultWS eVarF eVarHead)
+                                                    (
+                                                        EApp
+                                                            defaultWS
+                                                            (EApp defaultWS eVarMap eVarF)
+                                                            eVarTail
+                                                    )
+                                            )
+                                    )
+                            )
+                    )
+            )
+    
+
+joinBody : Expr
+joinBody = 
+    let
+        sepStr = "sep"
+        xsStr = "xs"
+        headStr = "head"
+        tailStr = "tail"
+
+        pSep = PVar defaultWS sepStr
+        pXs = PVar defaultWS xsStr
+        pHead = PVar defaultWS headStr
+        pTail = PVar defaultWS tailStr
+
+        eVarSep = EVar defaultWS sepStr
+        eVarXs = EVar defaultWS xsStr
+        eVarHead = EVar defaultWS headStr
+        eVarTail = EVar defaultWS tailStr
+
+    in
+        ELam 
+            defaultWS
+            pSep
+            (
+                ELam 
+                    defaultWS
+                    pXs
+                    (
+                        ECase 
+                            defaultWS
+                            eVarXs 
+                            (
+                                BCom
+                                    defaultWS
+                                    (BSin defaultWS (PNil defaultWS) (ENil ([], esElm)))
+                                    (
+                                        BCom
+                                            defaultWS
+                                            (
+                                                BSin 
+                                                    defaultWS 
+                                                    (PCons defaultWS pHead (PNil defaultWS))
+                                                    eVarHead
+                                            )
+                                            (
+                                                BSin 
+                                                    defaultWS
+                                                    (PCons defaultWS pHead pTail)
+                                                    (
+                                                        EBPrim
+                                                            defaultWS
+                                                            Add
+                                                            (EBPrim defaultWS Add eVarHead eVarSep)
+                                                            (
+                                                                EApp 
+                                                                    defaultWS
+                                                                    (EApp defaultWS eVarJoin eVarSep)
+                                                                    eVarTail
+                                                            )
+                                                    )
+                                            )
+                                    )
+
+                            )
+                    )
+            )
+
+
+-- preclude primitive operation on list. 
+-- append, flatten, map, join,
+
+withPreclude : Expr -> Expr 
+withPreclude expr = 
+    ELetrec 
+        defaultWS
+        pAppend
+        appendBody
+        (
+            ELetrec
+                defaultWS
+                pFlatten
+                flattenBody
+                (
+                    ELetrec
+                        defaultWS
+                        pMap
+                        mapBody
+                        (
+                            ELetrec
+                                defaultWS
+                                pJoin
+                                joinBody
+                                expr
+                        )
+                )
+        )
+
+
+-- string constant literal Expr (empty string, CRLF string)
+empStrExpr : Expr
+empStrExpr = ENil ([" "], esElm)
+
+lfStrExpr : Expr
+lfStrExpr = ECons ([" "], esQuo) (EChar ([" "], 0) '\n') (changeWsForList ([], esElm) empStrExpr)

@@ -6,6 +6,7 @@ import BDLangUtils exposing (..)
 import BDParser_ exposing (parse)
 import Debug exposing (toString)
 import BDEval exposing (eval)
+import BDDesugar exposing (..)
 
 
 evalCodeToModel : Code -> Model
@@ -17,8 +18,8 @@ evalCodeToModel code =
         case parseResult of
             Result.Ok e ->
                 let 
-
-                    e_ = processAfterParse e []
+                    desugaredExpr = desugarWithPreclude e
+                    e_ = processAfterParse desugaredExpr []
                     res = eval [] e_
 
                     (output, mode) =
