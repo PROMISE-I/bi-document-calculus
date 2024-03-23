@@ -1,5 +1,7 @@
 module BDSyntax exposing (..)
+
 import Html.Attributes exposing (default)
+import Parser exposing (number)
 
 type alias Info = String
 
@@ -58,6 +60,12 @@ caseId = 1
 ifId : number
 ifId = 2
 
+-- string template context & article template context
+stctx : number
+stctx = 1
+atctx : number
+atctx = 2
+
 type Expr
     = EParens WS Expr
     | EVar WS String
@@ -84,8 +92,8 @@ type Expr
     | EError Info
 
 type Template
-    = TCons TplPart Template
-    | TNil
+    = TCons Int TplPart Template
+    | TNil Int
 
 type TplPart
     = TplStr Expr
