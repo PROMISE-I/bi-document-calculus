@@ -466,11 +466,11 @@ tplPartsToTemplate tps =
 tplPart : TplCtx -> Parser TplPart
 tplPart ctx = 
     oneOf 
-        [ backtrackable tplStr
-        , backtrackable tplExpr
-        , backtrackable tplSet
-        , backtrackable <| tplIf ctx
-        , backtrackable <| tplForeach ctx
+        [ tplExpr
+        , tplSet
+        , tplIf ctx
+        , tplForeach ctx
+        , tplStr
         ]
 
 tplStrStops : List String
@@ -530,8 +530,8 @@ tplSet : Parser TplPart
 tplSet = 
     succeed (\s1 s2 p s3 s4 e s5 -> 
                 TplSet ([s1, s2, s3, s4, s5], defaultId) p e)
-        |. symbol "{%"
-        |= mSpaces
+        |. backtrackable (symbol "{%")
+        |= backtrackable mSpaces
         |. symbol "set"
         |= mSpaces
         |= lazy (\_ -> pattern)
@@ -563,8 +563,8 @@ tplIfBody ctx =
     succeed (\s1 s2 e s3 s4 t -> 
                 (([s1, s2, s3, s4], defaultId), e, t)
             )
-        |. symbol "{%"
-        |= mSpaces
+        |. backtrackable (symbol "{%")
+        |= backtrackable mSpaces
         |. symbol "if"
         |= mSpaces 
         |= lazy (\_ -> expr)
@@ -615,8 +615,8 @@ tplForeachBody ctx =
     succeed (\s1 s2 p s3 s4 e s5 t -> 
                 (([s1, s2, s3, s4, s5], defaultId), (p, e, t))
             )
-        |. symbol "{%"
-        |= mSpaces
+        |. backtrackable (symbol "{%")
+        |= backtrackable mSpaces
         |. symbol "for"
         |= mSpaces
         |= lazy (\_ -> pattern)
