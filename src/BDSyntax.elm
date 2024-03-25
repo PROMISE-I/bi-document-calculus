@@ -21,14 +21,19 @@ voId = 0    -- Other
 
 -- ECons:
 -- ENil like elm
+-- Other list begin tag
 eoSquare : number
 eoSquare = 0
+-- Other list element tag
 eoElm : number
 eoElm = 1
+-- Cons operation tag
 eoCons : number
 eoCons = 2
+-- String begin tag
 esQuo : number
 esQuo = 3
+-- String element tag
 esElm : number
 esElm = 4
 
