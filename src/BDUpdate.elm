@@ -331,10 +331,11 @@ uneval venv expr newv =
                     { venv = []
                     , expr = EError "Char Constant Update Error."
                     }
+        
 
-        ECons ws e1 e2 ->
+        ECons (pads, eId) e1 e2 ->
             case newv of
-                VCons _ v1 v2 ->
+                VCons vId v1 v2 ->
                     let
                         res1 =
                             uneval venv e1 v1
@@ -344,15 +345,20 @@ uneval venv expr newv =
                         
                         newvenv =
                             mergeVEnv res1.venv res2.venv venv
-
+                        
                     in
-                        { venv = newvenv
-                        , expr = ECons ws res1.expr res2.expr
-                        }
+                        if eId == eoCons then
+                            { venv = newvenv
+                            , expr = ECons (pads, eId) res1.expr res2.expr
+                            }
+                        else 
+                            { venv = newvenv
+                            , expr = ECons (pads, vIdToEId vId eId) res1.expr res2.expr
+                            }
 
-                VNil _ ->
+                VNil vId ->
                     { venv = venv
-                    , expr = ENil ws
+                    , expr = ENil (pads, vIdToEId vId eId)
                     }
 
                 _ ->
@@ -435,14 +441,14 @@ uneval venv expr newv =
                     , expr = EError "HTML Update Error."
                     }
 
-        ENil ws ->
+        ENil (pads, eId) ->
             case newv of
-                VNil _ ->
+                VNil vId ->
                     { venv = venv
-                    , expr = ENil ws
+                    , expr = ENil (pads, vIdToEId vId eId)
                     }
                 
-                VCons _ _ _ ->
+                VCons vId _ _ ->
                     let
                         ne =
                             valueToExpr newv
@@ -450,27 +456,31 @@ uneval venv expr newv =
                         newe =
                             case ne of
                                 ECons _ e1 e2 ->
-                                    case ws of
-                                        -- correct ws for eoAddFromEmp
-                                        ([_, ws2], 5) ->
-                                            changeWsForList ([" "], eoElm) e2
-                                                |> ECons ([" ", ws2], eoSquare) e1
-                                        
-                                        -- correct ws for eoElm
-                                        (_, 1) ->
-                                            changeWsForList ([], eoElm) ne
-
-                                        -- correct ws for esQuo
-                                        ([ws1], 3) ->
+                                    -- Original ENil is at the head of the list/string, thus need a esQuo/eoSquare
+                                    if eId == esQuo || eId == eoSquare || eId == eoAddFromEmp then
+                                        if vId == vsId then
                                             changeWsForList ([" "], esElm) e2
-                                                |> ECons ([ws1], esQuo) e1
-                                                
-                                        -- correct ws for esElm
-                                        (_, 4) ->
-                                            changeWsForList ([], esElm) ne
-
-                                        _ ->
+                                                    |> ECons (pads, esQuo) e1
+                                    
+                                        else if vId == voId then
+                                            changeWsForList ([" "], eoElm) e2
+                                                |> ECons (pads, eoSquare) e1
+                                    
+                                        else 
                                             EError "Nil Expr WS Error."
+                                    -- Original ENil is one of the elements in the list/string
+                                    else if eId == esElm || eId == eoElm then
+                                        if vId == vsId then
+                                            changeWsForList ([], esElm) ne
+                                        
+                                        else if vId == voId then
+                                            changeWsForList ([], eoElm) ne
+                                        
+                                        else 
+                                            EError "Nil Expr WS Error."
+                                    
+                                    else 
+                                        EError "Nil Expr WS Error."
                                 
                                 _ ->
                                     EError "Value To Expr Error."
