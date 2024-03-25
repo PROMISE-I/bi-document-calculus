@@ -1129,10 +1129,10 @@ printChilds childs =
             "Print Childs Error."
 
 
-appendName = "append"
-flattenName = "flatten"
-mapName = "map"
-joinName = "join"
+appendName = "$append$"
+flattenName = "$flatten$"
+mapName = "$map$"
+joinName = "$join$"
 
 -- pattern of primitive operation of list
 pAppend = PVar defaultWS appendName
