@@ -1380,9 +1380,8 @@ joinBody =
 
 withPreclude : Expr -> Expr 
 withPreclude expr = 
-    EApp
-        defaultWS
-        (
+    let
+        precludeBody = 
             ELam
                 defaultWS
                 pPreclude
@@ -1411,7 +1410,11 @@ withPreclude expr =
                                 )
                         )
                 )
-        )
+    in
+    -- make unique identification for resugar
+    EApp
+        defaultWS
+        precludeBody
         expr
 
 
