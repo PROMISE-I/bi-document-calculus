@@ -4,8 +4,6 @@ module BDLangUtils exposing (..)
 import BDUtils exposing (..)
 import BDSyntax exposing (..)
 import Debug exposing (toString)
-import List exposing (map)
-import Html.Attributes exposing (default)
 
 printAST : Expr -> String
 printAST expr =
@@ -1128,22 +1126,33 @@ printChilds childs =
         _ ->
             "Print Childs Error."
 
-
+appendName : String
 appendName = "$append$"
+flattenName : String
 flattenName = "$flatten$"
+mapName : String
 mapName = "$map$"
+joinName : String
 joinName = "$join$"
 
 -- pattern of primitive operation of list
+pAppend : Pattern
 pAppend = PVar defaultWS appendName
+pFlatten : Pattern
 pFlatten = PVar defaultWS flattenName
+pMap : Pattern
 pMap = PVar defaultWS mapName
+pJoin : Pattern
 pJoin = PVar defaultWS joinName
 
 -- eVar of primitive operation of list
+eVarAppend : Expr
 eVarAppend = EVar defaultWS appendName
+eVarFlatten : Expr
 eVarFlatten = EVar defaultWS flattenName
+eVarMap : Expr
 eVarMap = EVar defaultWS mapName
+eVarJoin : Expr
 eVarJoin = EVar defaultWS joinName
 
 
@@ -1402,3 +1411,18 @@ empStrExpr = ENil ([" "], esElm)
 
 lfStrExpr : Expr
 lfStrExpr = ECons ([" "], esQuo) (EChar ([" "], 0) '\n') (changeWsForList ([], esElm) empStrExpr)
+
+vIdToEId : Int -> Int -> Int
+vIdToEId vid originalEId =
+    if originalEId == esQuo || originalEId == eoSquare || originalEId == eoAddFromEmp then
+        if vid == vsId then
+            esQuo
+        else if vid == voId then
+            eoSquare
+        else -1
+    else
+        if vid == vsId then
+            esElm
+        else if vid == voId then
+            eoElm
+        else -1
