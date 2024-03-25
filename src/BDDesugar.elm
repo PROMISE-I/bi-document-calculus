@@ -5,6 +5,10 @@ import BDLangUtils exposing (..)
 
 desugarWithPreclude : Expr -> Expr
 desugarWithPreclude expr = 
+    -- let
+        -- _ = Debug.log "desugar" <| Debug.toString (desugar expr)
+    -- in
+    
     withPreclude (desugar expr)
 
 desugar : Expr -> Expr
@@ -190,15 +194,25 @@ desugarStringTemplate t =
                                 (
                                     TplSplice
                                         (
-                                            ECase 
+                                            EApp
                                                 ws
-                                                e
                                                 (
-                                                    BCom 
-                                                        defaultWS 
-                                                        (BSin defaultWS (PTrue defaultWS) desugaredT1)
-                                                        (BSin defaultWS (PFalse defaultWS) desugaredT2)
+                                                    ELam 
+                                                        defaultWS
+                                                        (PVar defaultWS caseN)
+                                                        (
+                                                            ECase 
+                                                                defaultWS
+                                                                (EVar defaultWS caseN)
+                                                                (
+                                                                    BCom 
+                                                                        defaultWS 
+                                                                        (BSin defaultWS (PTrue defaultWS) desugaredT1)
+                                                                        (BSin defaultWS (PFalse defaultWS) desugaredT2)
+                                                                )
+                                                        )
                                                 )
+                                                e
                                         )
                                 )
                                 restTemplate
