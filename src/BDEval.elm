@@ -69,11 +69,29 @@ eval venv expr =
 
                 v2 =
                     eval venv e2
-            in
-                if id == esQuo || id == esElm then
-                    VCons vsId v1 v2
-                else
-                    VCons voId v1 v2
+            in 
+                if id == eoCons then
+                    -- handle (::) operation on string
+                    case v2 of
+                        VCons vsId _ _ ->
+                            if id == esQuo || id == esElm then
+                                VCons vsId v1 v2
+                            else
+                                VError "Cons (::) Error: cannot cons other type except char with string"
+                        
+                        VNil vsId ->
+                            if id == esQuo || id == esElm then
+                                VCons vsId v1 v2
+                            else
+                                VError "Cons (::) Error: cannot cons other type except char with string"
+                        
+                        _ -> VCons voId v1 v2
+                else 
+                    if id == esQuo || id == esElm then 
+                        VCons vsId v1 v2
+                    else 
+                        VCons voId v1 v2
+
 
         EBTuple _ e1 e2 ->
             let 
@@ -212,16 +230,16 @@ eval venv expr =
                         case v2 of
                             VCons id2 _ _ -> listOp id1 id2 op v1 v2 
                             
-                            VNil _ -> listOp id1 id1 op v1 v2
+                            VNil id2 -> listOp id1 id2 op v1 v2
 
                             _ ->
                                 VError "Operand Error: 08"
 
-                    VNil _ ->
+                    VNil id1 ->
                         case v2 of
-                            VCons id _ _ -> listOp id id op v1 v2
+                            VCons id2 _ _ -> listOp id1 id2 op v1 v2
                             
-                            VNil _ -> listOp voId voId op v1 v2
+                            VNil id2 -> listOp id1 id2 op v1 v2
 
                             _ ->
                                 VError "Operand Error: 09"
@@ -315,10 +333,19 @@ boolOp p =
 listOp : Int -> Int -> Bop -> Value -> Value -> Value
 listOp id1 id2 op v1 v2 =
     case op of 
-        Cat -> append v1 v2
-        Add -> 
-            if id1 == vsId && id2 == vsId then
+        Cat -> 
+            if id1 == id2 then
                 append v1 v2
             else 
                 VError "Operand Error: 07"
-        _ -> VError "Operand Error: 06"
+        
+        Add -> 
+            if id1 == id2 then
+                append v1 v2
+            else 
+                VError "Operand Error: 07"
+        
+        -- list eq
+        -- Eq -> 
+
+        _ -> VError ("Operand Error: 06" ++ Debug.toString op)
