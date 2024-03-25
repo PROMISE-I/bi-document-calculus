@@ -74,16 +74,16 @@ eval venv expr =
                     -- handle (::) operation on string
                     case v2 of
                         VCons vsId _ _ ->
-                            if id == esQuo || id == esElm then
-                                VCons vsId v1 v2
-                            else
-                                VError "Cons (::) Error: cannot cons other type except char with string"
+                            case v1 of
+                                VChar _ -> VCons vsId v1 v2
+
+                                _ -> VError "Cons (::) Error: cannot cons other type except char with string"
                         
                         VNil vsId ->
-                            if id == esQuo || id == esElm then
-                                VCons vsId v1 v2
-                            else
-                                VError "Cons (::) Error: cannot cons other type except char with string"
+                            case v1 of
+                                VChar _ -> VCons vsId v1 v2
+
+                                _ -> VError "Cons (::) Error: cannot cons other type except char with string"
                         
                         _ -> VCons voId v1 v2
                 else 
