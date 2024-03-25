@@ -65,6 +65,46 @@ caseId = 1
 ifId : number
 ifId = 2
 
+-- Template
+preclude : String
+preclude = "$preclude$"
+tplStr : String
+tplStr = "$tplStr$"
+tplExpr : String
+tplExpr = "$tplExpr$"
+tplSet : String
+tplSet = "$tplSet$"
+tplIf : String
+tplIf = "$tplIf$"
+tplForeach : String
+tplForeach = "$$tplForeach"
+
+pPreclude : Pattern
+pPreclude = PVar defaultWS preclude
+pTplStr : Pattern
+pTplStr = PVar defaultWS tplStr
+pTplExpr : Pattern
+pTplExpr = PVar defaultWS tplExpr
+pTplSet : Pattern
+pTplSet = PVar defaultWS tplSet
+pTplIf : Pattern
+pTplIf = PVar defaultWS tplIf
+pTplForeach : Pattern
+pTplForeach = PVar defaultWS tplForeach
+
+eVarPreclude : Expr
+eVarPreclude = EVar defaultWS preclude
+eVarTplStr : Expr
+eVarTplStr = EVar defaultWS tplStr
+eVarTplExpr : Expr
+eVarTplExpr = EVar defaultWS tplExpr
+eVarTplSet : Expr
+eVarTplSet = EVar defaultWS tplSet
+eVarTplIf : Expr
+eVarTplIf = EVar defaultWS tplIf
+eVarTplForeach : Expr
+eVarTplForeach = EVar defaultWS tplForeach
+
 type Expr
     = EParens WS Expr
     | EVar WS String

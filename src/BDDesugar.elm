@@ -178,11 +178,41 @@ desugarStringTemplate t =
             in
             
             case tPart of
-                TplStr e -> ECons ([" "], eoElm) e desugaredRestTemplate
+                TplStr e -> 
+                    -- make unique identification for resugar
+                    EApp 
+                        defaultWS
+                        (
+                            ELam
+                                defaultWS
+                                pTplStr
+                                eVarTplStr
+                        )
+                        (ECons ([" "], eoElm) e desugaredRestTemplate)
 
-                TplExpr e -> ECons ([" "], eoElm) e desugaredRestTemplate
+                TplExpr e -> 
+                    -- make unique identification for resugar
+                    EApp 
+                        defaultWS
+                        (
+                            ELam
+                                defaultWS
+                                pTplExpr
+                                eVarTplExpr
+                        )             
+                        (ECons ([" "], eoElm) e desugaredRestTemplate)
 
-                TplSet ws p e -> ELet ws p e desugaredRestTemplate
+                TplSet ws p e -> 
+                    -- make unique identification for resugar
+                    EApp
+                        defaultWS
+                        (
+                            ELam 
+                                defaultWS
+                                pTplSet
+                                eVarTplSet
+                        )
+                        (ELet ws p e desugaredRestTemplate)
 
                 TplIf ws e t1 t2 -> 
                     let
@@ -216,13 +246,22 @@ desugarStringTemplate t =
                                         )
                                 )
                                 restTemplate
-                    in                    
-                        desugarStringTemplate ifSpliceT
+                    in         
+                    -- make unique identification for resugar
+                        EApp
+                            defaultWS
+                            (
+                                ELam
+                                    defaultWS
+                                    pTplIf
+                                    eVarTplIf
+                            )           
+                            (desugarStringTemplate ifSpliceT)
                     
                 TplForeach ws p e t1 -> 
                     let
                         desugaredT1 = desugarStringTemplate t1
-                        foreachSpliceT = 
+                        foreachSpliceT =                         
                             TCons 
                                 ctx
                                 (
@@ -246,7 +285,16 @@ desugarStringTemplate t =
                                 )
                                 restTemplate
                     in
-                        desugarStringTemplate foreachSpliceT
+                    -- make unique identification for resugar
+                        EApp 
+                            defaultWS
+                            (
+                                ELam
+                                    defaultWS
+                                    pTplForeach
+                                    eVarTplForeach
+                            )
+                            (desugarStringTemplate foreachSpliceT)
                     
                 TplSplice e -> 
                     EApp

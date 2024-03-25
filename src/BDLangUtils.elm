@@ -1380,29 +1380,39 @@ joinBody =
 
 withPreclude : Expr -> Expr 
 withPreclude expr = 
-    ELetrec 
+    EApp
         defaultWS
-        pAppend
-        appendBody
         (
-            ELetrec
+            ELam
                 defaultWS
-                pFlatten
-                flattenBody
+                pPreclude
                 (
-                    ELetrec
+                    ELetrec 
                         defaultWS
-                        pMap
-                        mapBody
+                        pAppend
+                        appendBody
                         (
                             ELetrec
                                 defaultWS
-                                pJoin
-                                joinBody
-                                expr
+                                pFlatten
+                                flattenBody
+                                (
+                                    ELetrec
+                                        defaultWS
+                                        pMap
+                                        mapBody
+                                        (
+                                            ELetrec
+                                                defaultWS
+                                                pJoin
+                                                joinBody
+                                                eVarPreclude
+                                        )
+                                )
                         )
                 )
         )
+        expr
 
 
 -- string constant literal Expr (empty string, CRLF string)
