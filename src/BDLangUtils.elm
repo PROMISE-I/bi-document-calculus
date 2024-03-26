@@ -94,7 +94,7 @@ printAST expr =
                         _ -> "Print Error: 06."
 
                 _ ->
-                    "Print Error: 04."
+                    "Print Error: 04." ++ (Debug.toString (ls, kind))
 
         ENil ([ws], 3) ->
             "\"\"" ++ ws
@@ -279,7 +279,13 @@ printTpl t =
 printTplPart : TplPart -> String
 printTplPart tplPart = 
     case tplPart of
-        TplStr s -> printAST s
+        TplStr s -> 
+            case s of 
+                -- substitute esQUo(3) -> esElm to avoid print quotes
+                ECons (_, 3) e1 e2 ->
+                    printAST (ECons ([], esElm) e1 e2)
+
+                _ -> "Print Error: 03"
 
         TplExpr ([ws1, ws2], _) e -> 
             "{{" ++ ws1 ++ (printAST e) ++ ws2 ++"}}"
@@ -778,7 +784,8 @@ patternSubst env p =
                     val
                 
                 Nothing  ->
-                    VError "Pattern Substitution Error: 01."
+                    let _ = Debug.log "env" <| s ++ (Debug.toString env) in
+                    VError ("Pattern Substitution Error: 01." ++ s)
         
         PCons (_, id) p1 p2 ->
             if id == psQuo || id == psElm then
@@ -1164,7 +1171,7 @@ printChilds childs =
             "Print Childs Error."
 
 appendName : String
-appendName = "$append$"
+appendName = "append"
 flattenName : String
 flattenName = "$flatten$"
 mapName : String
