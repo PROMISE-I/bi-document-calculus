@@ -165,6 +165,9 @@ printAST expr =
         ETTuple ([ws1, ws2, ws3, ws4], _) e1 e2 e3 ->
             "(" ++ ws1 ++ (printAST e1) ++ "," ++ ws2 ++ (printAST e2) ++
             "," ++ ws3 ++ (printAST e3) ++ ")" ++ ws4
+        
+        StrTpl t ->
+            "{#" ++ (printTpl t) ++ "#}"
 
         EHtml ([ws1, ws2, ws3], 0) s e1 e2 e3 ->
             "Html." ++ s ++ ws1 ++ (printAST e1) ++ (ws2) ++
@@ -263,6 +266,40 @@ printBranch b =
 
         _ ->
             "Print Error: 05."
+
+
+printTpl : Template -> String
+printTpl t =
+    case t of
+        TCons _ tplPart restTpl ->
+            (printTplPart tplPart) ++ (printTpl restTpl)
+
+        TNil _ -> ""
+
+printTplPart : TplPart -> String
+printTplPart tplPart = 
+    case tplPart of
+        TplStr s -> printAST s
+
+        TplExpr ([ws1, ws2], _) e -> 
+            "{{" ++ ws1 ++ (printAST e) ++ ws2 ++"}}"
+
+        TplSet ([ws1, ws2, ws3, ws4, ws5], _) p e ->
+            "{%" ++ ws1 ++ "set" ++ ws2 ++ (printPattern p) ++ ws3 ++ "=" ++ ws4 ++ (printAST e) ++ ws5 ++ "%}"
+
+        TplIf ([ws1, ws2, ws3, ws4, ws5, ws6, ws7, ws8], _) e t1 t2 ->
+            "{%" ++ ws1 ++ "if" ++ ws2 ++ (printAST e) ++ ws3 ++ "then" ++ ws4 ++ "%}" ++
+            (printTpl t1) ++ 
+            "{%" ++ ws5 ++ "else" ++ ws6 ++ "%}" ++
+            (printTpl t2) ++ 
+            "{%" ++ ws7 ++ "endif" ++ ws8 ++ "%}"
+        
+        TplForeach ([ws1, ws2, ws3, ws4, ws5, ws6, ws7], _) p e t -> 
+            "{%" ++ ws1 ++ "for" ++ ws2 ++ (printPattern p) ++ ws3 ++ "in" ++ ws4 ++ (printAST e) ++ ws5 ++ "%}" ++ 
+            (printTpl t) ++ 
+            "{%" ++ ws6 ++ "endfor" ++ ws7 ++ "%}"
+
+        _ -> "Print Error: 02"
 
 -- processBeforePrint: 给 case 的 branch 去编号，BNSin -> BSin
 
