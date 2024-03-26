@@ -285,6 +285,8 @@ printTplPart tplPart =
                 ECons (_, 3) e1 e2 ->
                     printAST (ECons ([], esElm) e1 e2)
 
+                ENil _ -> ""
+
                 _ -> "Print Error: 03"
 
         TplExpr ([ws1, ws2], _) e -> 
@@ -785,7 +787,7 @@ patternSubst env p =
                 
                 Nothing  ->
                     let _ = Debug.log "env" <| s ++ (Debug.toString env) in
-                    VError ("Pattern Substitution Error: 01." ++ s)
+                    VError ("Pattern Substitution Error: 01.\n" ++ s)
         
         PCons (_, id) p1 p2 ->
             if id == psQuo || id == psElm then
@@ -1506,3 +1508,16 @@ vIdToEId vid originalEId =
         else if vid == voId then
             eoElm
         else -1
+
+
+unifyLineSeparator : String -> String
+unifyLineSeparator input = 
+    let
+        replaceRN = String.replace "\r\n" "\n" input
+        replaceR = String.replace "\r" "\n" replaceRN
+
+        _ = Debug.log "input" <| input
+        _ = Debug.log "output" <| replaceR
+
+    in
+        replaceR

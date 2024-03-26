@@ -5,8 +5,8 @@ import Parser exposing (..)
 import BDSyntax exposing (..)
 import Parser.Extras exposing (..)
 import Parser.Expression exposing (..)
-import List exposing (member)
 import Html exposing (b)
+import BDLangUtils exposing (unifyLineSeparator)
 
 
 mSpaces : Parser String
@@ -101,7 +101,7 @@ char =
 
 string_ : Parser String
 string_ = 
-    getChompedString (chompUntil "\"")
+    Parser.map unifyLineSeparator (getChompedString (chompUntil "\""))
 
 
 string : Parser Expr
@@ -128,7 +128,7 @@ stringToExpr ws s =
 varName : Parser String
 varName =
     variable
-    { start = Char.isLower
+    { start = \c -> Char.isLower c || c == '_' 
     , inner = \c -> Char.isAlphaNum c || c == '_'
     , reserved = Set.fromList <|
             [ "if"
@@ -499,6 +499,7 @@ tplStrChompCallBack stops acc result =
 tplStr : Parser TplPart
 tplStr = 
     succeed (\s -> s 
+                |> unifyLineSeparator
                 |> String.toList
                 |> stringToExpr ([""], esQuo)
                 |> TplStr)
