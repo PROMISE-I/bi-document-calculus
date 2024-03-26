@@ -49,10 +49,11 @@ updateCode model =
 
             newCode = printAST resugaredCode
 
-            _ = Debug.log "pCode" <| Debug.toString pCode
-            _ = Debug.log "upRes.expr" <| Debug.toString upRes.expr
-            _ = Debug.log "expr_" <| Debug.toString expr_
-            _ = Debug.log "resugaredCode" <| Debug.toString resugaredCode
+            -- _ = Debug.log "pCode" <| Debug.toString pCode
+            -- _ = Debug.log "pOutput" <| Debug.toString pOutput
+            -- _ = Debug.log "upRes.expr" <| Debug.toString upRes.expr
+            -- _ = Debug.log "expr_" <| Debug.toString expr_
+            -- _ = Debug.log "resugaredCode" <| Debug.toString resugaredCode
         in 
             newCode
 
@@ -246,12 +247,12 @@ uneval venv expr newv =
                                         res3 =
                                             uneval venv e2 newv2 
 
-                                        _ = Debug.log "uneval-patternsubst-e1" <| Debug.toString e1
-                                        _ = Debug.log "uneval-patternsubst-e2" <| Debug.toString e2
-                                        _ = Debug.log "uneval-patternsubst-ef" <| Debug.toString ef
-                                        _ = Debug.log "uneval-patternsubst-newv" <| Debug.toString newv
-                                        _ = Debug.log "uneval-patternsubst-res1" <| Debug.toString res1
-                                        _ = Debug.log "uneval-patternsubst-venvm" <| Debug.toString venvm
+                                        -- _ = Debug.log "uneval-patternsubst-e1" <| Debug.toString e1
+                                        -- _ = Debug.log "uneval-patternsubst-e2" <| Debug.toString e2
+                                        -- _ = Debug.log "uneval-patternsubst-ef" <| Debug.toString ef
+                                        -- _ = Debug.log "uneval-patternsubst-newv" <| Debug.toString newv
+                                        -- _ = Debug.log "uneval-patternsubst-res1" <| Debug.toString res1
+                                        -- _ = Debug.log "uneval-patternsubst-venvm" <| Debug.toString venvm
 
 
                                     in
@@ -510,7 +511,7 @@ uneval venv expr newv =
 
                 _ ->
                     { venv = []
-                    , expr = EError "Nil List Update Error."
+                    , expr = EError ("Nil List Update Error.\n" ++ (Debug.toString newv))
                     }
 
         EFix ws e ->
@@ -841,6 +842,11 @@ arith ws e1 e2 venv newv op =
         v1 = eval venv e1 
         
         v2  = eval venv e2
+        _ = Debug.log "e1" <| Debug.toString e1
+        _ = Debug.log "v1" <| Debug.toString v1
+        _ = Debug.log "e2" <| Debug.toString e2
+        _ = Debug.log "v2" <| Debug.toString v2
+
     in
     case newv of
         VInt n ->
@@ -960,7 +966,7 @@ arith ws e1 e2 venv newv op =
                     }
 
         VNil _ ->
-            if op == Cat then
+            if op == Cat || op == Add then
                 checkChange venv ws op e1 e2 v1 v2 newv newv
             else
                 { venv = []
@@ -989,7 +995,6 @@ comp ws e1 e2 venv newv op =
                             case (v1, v2) of
                                 _ -> (VError "", VError "")
                         
-                        _ = Debug.log "comp" <| Debug.toString v1 ++ (Debug.toString v2)
                     in
                     case (newv1, newv2) of
                         (VError _, VError _) ->
