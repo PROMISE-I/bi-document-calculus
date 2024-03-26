@@ -3,6 +3,11 @@ import BDSyntax exposing (..)
 import BDLangUtils exposing (..)
 import BDParser_ exposing (..)
 
+resugarWithoutPreclude : Expr -> Expr
+resugarWithoutPreclude e =
+    resugar (removePreclude e)
+
+
 removePreclude : Expr -> Expr
 removePreclude e =
     case e of
@@ -39,6 +44,7 @@ removePreclude e =
             else 
                 EError "Not Allow Modification on Output, which cause updates on pre-define functions"
         _ -> EError "Not Allow Modification on Output, which cause updates on pre-define functions"
+               
                 
 resugar : Expr -> Expr
 resugar expr =
