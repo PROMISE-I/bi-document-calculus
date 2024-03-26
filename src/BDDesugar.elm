@@ -182,37 +182,22 @@ desugarStringTemplate t =
                     -- make unique identification for resugar
                     EApp 
                         defaultWS
-                        (
-                            ELam
-                                defaultWS
-                                pTplStr
-                                eVarTplStr
-                        )
+                        lamTplStr
                         (ECons ([" "], eoElm) e desugaredRestTemplate)
 
-                TplExpr e -> 
+                TplExpr ws e -> 
                     -- make unique identification for resugar
                     EApp 
-                        defaultWS
-                        (
-                            ELam
-                                defaultWS
-                                pTplExpr
-                                eVarTplExpr
-                        )             
+                        ws
+                        lamTplExpr       
                         (ECons ([" "], eoElm) e desugaredRestTemplate)
 
                 TplSet ws p e -> 
                     -- make unique identification for resugar
                     EApp
-                        defaultWS
-                        (
-                            ELam 
-                                defaultWS
-                                pTplSet
-                                eVarTplSet
-                        )
-                        (ELet ws p e desugaredRestTemplate)
+                        ws
+                        lamTplSet
+                        (ELet defaultWS p e desugaredRestTemplate)
 
                 TplIf ws e t1 t2 -> 
                     let
@@ -225,7 +210,7 @@ desugarStringTemplate t =
                                     TplSplice
                                         (
                                             EApp
-                                                ws
+                                                defaultWS
                                                 (
                                                     ELam 
                                                         defaultWS
@@ -249,13 +234,8 @@ desugarStringTemplate t =
                     in         
                     -- make unique identification for resugar
                         EApp
-                            defaultWS
-                            (
-                                ELam
-                                    defaultWS
-                                    pTplIf
-                                    eVarTplIf
-                            )           
+                            ws
+                            lamTplIf        
                             (desugarStringTemplate ifSpliceT)
                     
                 TplForeach ws p e t1 -> 
@@ -268,7 +248,7 @@ desugarStringTemplate t =
                                     TplSplice
                                         (
                                             EApp
-                                                ws
+                                                defaultWS
                                                 eVarFlatten
                                                 (
                                                     EApp
@@ -287,13 +267,8 @@ desugarStringTemplate t =
                     in
                     -- make unique identification for resugar
                         EApp 
-                            defaultWS
-                            (
-                                ELam
-                                    defaultWS
-                                    pTplForeach
-                                    eVarTplForeach
-                            )
+                            ws
+                            lamTplForeach
                             (desugarStringTemplate foreachSpliceT)
                     
                 TplSplice e -> 
