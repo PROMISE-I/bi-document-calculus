@@ -1380,42 +1380,65 @@ joinBody =
 
 withPreclude : Expr -> Expr 
 withPreclude expr = 
-    let
-        precludeBody = 
-            ELam
+    ELetrec 
+        defaultWS
+        pAppend
+        appendBody
+        (
+            ELetrec
                 defaultWS
-                pPreclude
+                pFlatten
+                flattenBody
                 (
-                    ELetrec 
+                    ELetrec
                         defaultWS
-                        pAppend
-                        appendBody
+                        pMap
+                        mapBody
                         (
                             ELetrec
                                 defaultWS
-                                pFlatten
-                                flattenBody
-                                (
-                                    ELetrec
-                                        defaultWS
-                                        pMap
-                                        mapBody
-                                        (
-                                            ELetrec
-                                                defaultWS
-                                                pJoin
-                                                joinBody
-                                                eVarPreclude
-                                        )
-                                )
+                                pJoin
+                                joinBody
+                                expr
                         )
                 )
-    in
-    -- make unique identification for resugar
-    EApp
+        )
+
+-- lambda identification for template part
+lamTplStr : Expr
+lamTplStr =
+    ELam
         defaultWS
-        precludeBody
-        expr
+        pTplStr
+        eVarTplStr
+
+lamTplExpr : Expr
+lamTplExpr = 
+    ELam
+        defaultWS
+        pTplExpr
+        eVarTplExpr
+
+lamTplSet : Expr
+lamTplSet = 
+    ELam 
+        defaultWS
+        pTplSet
+        eVarTplSet
+
+lamTplIf : Expr
+lamTplIf = 
+    ELam
+        defaultWS
+        pTplIf
+        eVarTplIf
+
+lamTplForeach : Expr
+lamTplForeach = 
+    ELam
+        defaultWS
+        pTplForeach
+        eVarTplForeach
 
 
 -- string constant literal Expr (empty string, CRLF string)
