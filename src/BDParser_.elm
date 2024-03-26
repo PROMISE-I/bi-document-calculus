@@ -520,9 +520,11 @@ getChompedStringUntilAny stops =
 
 tplExpr : Parser TplPart
 tplExpr = 
-    succeed (\e -> TplExpr e)
+    succeed (\s1 e s2 -> TplExpr ([s1, s2], defaultId) e)
         |. symbol "{{"
+        |= mSpaces
         |= lazy (\_ -> expr)
+        |= mSpaces
         |. symbol "}}"
 
 
