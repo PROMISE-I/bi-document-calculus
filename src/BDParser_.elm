@@ -500,7 +500,7 @@ tplStr : Parser TplPart
 tplStr = 
     succeed (\s -> s 
                 |> String.toList
-                |> stringToExpr ([], esQuo)
+                |> stringToExpr ([""], esQuo)
                 |> TplStr)
         |=  getChompedStringUntilAny tplStrStops
 
