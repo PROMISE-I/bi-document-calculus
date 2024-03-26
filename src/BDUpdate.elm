@@ -7,7 +7,8 @@ import BDLangUtils exposing (..)
 import BDEval exposing (eval)
 import BDHtmlParser exposing (parseHtml)
 import BDParser_ exposing (parse, parseVal)
-import BDDesugar exposing (desugarWithPreclude)
+import BDDesugar exposing (..)
+import BDResugar exposing (..)
 
 
 updateCode : Model -> Code
@@ -39,10 +40,19 @@ updateCode model =
         "Parse Code Error."
     _ -> 
         let desugaredPCode = desugarWithPreclude pCode
+
             expr = processAfterParse desugaredPCode []
             upRes = uneval [] expr pOutput
             expr_ = processBeforePrint upRes.expr []
-            newCode = printAST expr_
+
+            resugaredCode = resugarWithoutPreclude expr_
+
+            newCode = printAST resugaredCode
+
+            _ = Debug.log "pCode" <| Debug.toString pCode
+            _ = Debug.log "upRes.expr" <| Debug.toString upRes.expr
+            _ = Debug.log "expr_" <| Debug.toString expr_
+            _ = Debug.log "resugaredCode" <| Debug.toString resugaredCode
         in 
             newCode
 
@@ -235,6 +245,15 @@ uneval venv expr newv =
                                         
                                         res3 =
                                             uneval venv e2 newv2 
+
+                                        _ = Debug.log "uneval-patternsubst-e1" <| Debug.toString e1
+                                        _ = Debug.log "uneval-patternsubst-e2" <| Debug.toString e2
+                                        _ = Debug.log "uneval-patternsubst-ef" <| Debug.toString ef
+                                        _ = Debug.log "uneval-patternsubst-newv" <| Debug.toString newv
+                                        _ = Debug.log "uneval-patternsubst-res1" <| Debug.toString res1
+                                        _ = Debug.log "uneval-patternsubst-venvm" <| Debug.toString venvm
+
+
                                     in
                                     case res3.expr of
                                         EError info ->
@@ -363,7 +382,7 @@ uneval venv expr newv =
 
                 _ ->
                     { venv = []
-                    , expr = EError "List Update Error."
+                    , expr = EError ("List Update Error." ++ (Debug.toString newv)) 
                     }
 
         EBTuple ws e1 e2 ->
@@ -549,8 +568,7 @@ uneval venv expr newv =
                                 newv_ = tryRes.pi 
                                         |> patternSubst tryRes.venv 
 
-                                venv_ =
-                                    ((s, newv_) :: (drop (len + 1) tryRes.venv))
+                                venv_ = updateElmInVenv s newv_ (drop len tryRes.venv)
                             in
                                 { venv = venv_
                                 , expr = ECase ws1 (EVar ws2 s) branches_
@@ -970,6 +988,8 @@ comp ws e1 e2 venv newv op =
                         (newv1, newv2) =
                             case (v1, v2) of
                                 _ -> (VError "", VError "")
+                        
+                        _ = Debug.log "comp" <| Debug.toString v1 ++ (Debug.toString v2)
                     in
                     case (newv1, newv2) of
                         (VError _, VError _) ->
