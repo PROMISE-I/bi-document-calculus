@@ -66,44 +66,44 @@ ifId : number
 ifId = 2
 
 -- Template
-preclude : String
-preclude = "$preclude$"
-tplStr : String
-tplStr = "$tplStr$"
-tplExpr : String
-tplExpr = "$tplExpr$"
-tplSet : String
-tplSet = "$tplSet$"
-tplIf : String
-tplIf = "$tplIf$"
-tplForeach : String
-tplForeach = "$$tplForeach"
+precludeName : String
+precludeName = "$preclude$"
+tplStrName : String
+tplStrName = "$tplStr$"
+tplExprName : String
+tplExprName = "$tplExpr$"
+tplSetName : String
+tplSetName = "$tplSet$"
+tplIfName : String
+tplIfName = "$tplIf$"
+tplForeachName : String
+tplForeachName = "$$tplForeach"
 
 pPreclude : Pattern
-pPreclude = PVar defaultWS preclude
+pPreclude = PVar defaultWS precludeName
 pTplStr : Pattern
-pTplStr = PVar defaultWS tplStr
+pTplStr = PVar defaultWS tplStrName
 pTplExpr : Pattern
-pTplExpr = PVar defaultWS tplExpr
+pTplExpr = PVar defaultWS tplExprName
 pTplSet : Pattern
-pTplSet = PVar defaultWS tplSet
+pTplSet = PVar defaultWS tplSetName
 pTplIf : Pattern
-pTplIf = PVar defaultWS tplIf
+pTplIf = PVar defaultWS tplIfName
 pTplForeach : Pattern
-pTplForeach = PVar defaultWS tplForeach
+pTplForeach = PVar defaultWS tplForeachName
 
 eVarPreclude : Expr
-eVarPreclude = EVar defaultWS preclude
+eVarPreclude = EVar defaultWS precludeName
 eVarTplStr : Expr
-eVarTplStr = EVar defaultWS tplStr
+eVarTplStr = EVar defaultWS tplStrName
 eVarTplExpr : Expr
-eVarTplExpr = EVar defaultWS tplExpr
+eVarTplExpr = EVar defaultWS tplExprName
 eVarTplSet : Expr
-eVarTplSet = EVar defaultWS tplSet
+eVarTplSet = EVar defaultWS tplSetName
 eVarTplIf : Expr
-eVarTplIf = EVar defaultWS tplIf
+eVarTplIf = EVar defaultWS tplIfName
 eVarTplForeach : Expr
-eVarTplForeach = EVar defaultWS tplForeach
+eVarTplForeach = EVar defaultWS tplForeachName
 
 type Expr
     = EParens WS Expr
@@ -146,7 +146,7 @@ atctx = 2
 
 type TplPart
     = TplStr Expr
-    | TplExpr Expr
+    | TplExpr WS Expr
     | TplSet WS Pattern Expr
     | TplIf WS Expr Template Template
     | TplForeach WS Pattern Expr Template
