@@ -14,7 +14,7 @@ evalCodeToModel code =
     let 
         parseResult = 
             parse code 
-    in
+    in  
         case parseResult of
             Result.Ok e ->
                 let 
@@ -28,6 +28,12 @@ evalCodeToModel code =
                                 (print res, HTML)
                             _ ->
                                 (print res, Console)
+                    
+                    -- lst1 = "kitten" |> String.toList
+                    -- lst2 = "sitting" |> String.toList
+                    -- _ = Debug.log "lst1" lst1
+                    -- _ = Debug.log "lst2" lst2
+                    -- _ = Debug.log "diff" <| generateEditOperations '@' lst1 lst2
 
                 in
                     { code = code
@@ -44,3 +50,9 @@ evalCodeToModel code =
                     , isOutputChange = False
                     , mode = Console
                     }
+        -- { code = code
+        -- , output = Debug.toString parseResult
+        -- , codeBackup = code 
+        -- , isOutputChange = False
+        -- , mode = Console
+        -- }

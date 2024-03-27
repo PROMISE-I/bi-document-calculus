@@ -42,10 +42,10 @@ removePreclude e =
             then
                 userExpr
             else 
-                EError "Not Allow Modification on Output, which cause updates on pre-define functions"
-        _ -> EError "Not Allow Modification on Output, which cause updates on pre-define functions"
-               
-                
+                EError ("Not Allow Modification on Output, which cause updates on pre-define functions:\n" ++ (Debug.toString e))
+        _ -> EError ("Not Allow Modification on Output, which cause updates on pre-define functions:\n" ++ (Debug.toString e))
+
+
 resugar : Expr -> Expr
 resugar expr =
     case expr of 
@@ -100,7 +100,7 @@ resugar expr =
 
         EToStr ws e -> EToStr ws (resugar e)
 
-        _ -> EError "Resugar Template Error: 01"
+        _ -> EError ("Resugar Template Error: 01\n" ++ (Debug.toString expr))
         
 resugarBranch : Branch -> Branch
 resugarBranch branch = 
