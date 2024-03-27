@@ -9,6 +9,8 @@ import BDHtmlParser exposing (parseHtml)
 import BDParser_ exposing (parse, parseVal)
 import BDDesugar exposing (..)
 import BDResugar exposing (..)
+import Html exposing (i)
+import Dict exposing (diff)
 
 
 updateCode : Model -> Code
@@ -82,7 +84,7 @@ uneval venv expr newv =
                 
                 _ ->
                     { venv = venv
-                    , expr = EError "Function Closure Update Error."
+                    , expr = EError ("Function Closure Update Error." ++ (Debug.toString newv))
                     }
 
         ELet ws p e1 e2 ->
@@ -128,6 +130,38 @@ uneval venv expr newv =
                     { venv = []
                     , expr = EError "ELetrec Update Error."
                     }
+
+
+        -- ad hoc uneval semantics of $append$
+        EApp
+            ws1
+            (
+                EApp 
+                    ws2
+                    (EVar ws3 "append")
+                    e1
+            )
+            e2 ->
+            let
+                (v1New, v2New) = listAppendUpdate venv e1 e2 newv
+
+                e1NewRes = uneval venv e1 v1New
+                e2NewRes = uneval venv e2 v2New
+                venvNew = mergeVEnv e1NewRes.venv e2NewRes.venv venv
+
+                _ = Debug.log "e1" <| Debug.toString e1
+                _ = Debug.log "e2" <| Debug.toString e2
+                _ = Debug.log "v1New" <| Debug.toString v1New
+                _ = Debug.log "v2New" <| Debug.toString v2New
+                _ = Debug.log "e1New" <| Debug.toString e1NewRes.expr
+                _ = Debug.log "e2New" <| Debug.toString e2NewRes.expr
+
+
+            in 
+                { venv = venvNew
+                , expr = (EApp ws1 (EApp ws2 eVarAppend e1NewRes.expr) e2NewRes.expr)
+                }
+
 
         EApp ws e1 (EFix _ e2) ->
             let 
@@ -842,10 +876,10 @@ arith ws e1 e2 venv newv op =
         v1 = eval venv e1 
         
         v2  = eval venv e2
-        _ = Debug.log "e1" <| Debug.toString e1
-        _ = Debug.log "v1" <| Debug.toString v1
-        _ = Debug.log "e2" <| Debug.toString e2
-        _ = Debug.log "v2" <| Debug.toString v2
+        -- _ = Debug.log "e1" <| Debug.toString e1
+        -- _ = Debug.log "v1" <| Debug.toString v1
+        -- _ = Debug.log "e2" <| Debug.toString e2
+        -- _ = Debug.log "v2" <| Debug.toString v2
 
     in
     case newv of
@@ -945,14 +979,14 @@ arith ws e1 e2 venv newv op =
             case op of
                 Cat ->
                     let
-                        (newv1, newv2) = deAppend newv (vlength v1)
+                        (newv1, newv2) = listAppendUpdate venv e1 e2 newv
                     in
                         checkChange venv ws op e1 e2 v1 v2 newv1 newv2
 
                 Add -> 
                     if id == vsId then 
                         let 
-                            (newv1, newv2) = deAppend newv (vlength v1)
+                            (newv1, newv2) = listAppendUpdate venv e1 e2 newv
                         in 
                             checkChange venv ws op e1 e2 v1 v2 newv1 newv2
                     else 
@@ -1088,3 +1122,88 @@ checkChange venv ws op e1 e2 v1 v2 newv1 newv2 =
             { venv = newvenv
             , expr = EBPrim ws op res1.expr res2.expr
             }
+
+    
+listAppendUpdate : VEnv -> Expr -> Expr -> Value -> (Value, Value)
+listAppendUpdate venv e1 e2 newv =
+    let
+        v1 = eval venv e1
+        v2 = eval venv e2
+        vList1 = vConsToList v1
+        vList2 = vConsToList v2
+        vListOld = vList1 ++ vList2 
+        vListNew = vConsToList newv
+        
+        diffOps = generateEditOperations (VError "") vListOld vListNew
+        (vList1New, vList2New) = listAppendUpdateHelper vList1 vList2 diffOps
+
+    in
+        (listToVCons vList1New (getVConsId v1), listToVCons vList2New (getVConsId v2))
+
+listAppendUpdateHelper : List Value -> List Value -> List (DiffOp Value) -> (List Value, List Value)
+listAppendUpdateHelper v1 v2 diffOps =
+    let 
+        errorRes = ([VError "List append update error: 01"], [VError "List append update error: 01"]) 
+    in
+        case diffOps of 
+            [] -> 
+                if v1 == [] && v2 == [] then
+                    ([], [])
+                else 
+                    errorRes
+
+            (DiffInsert v) :: restDiffOps ->
+                case v1 of
+                    [] ->
+                        let
+                            (_, v2New) = listAppendUpdateHelper v1 v2 restDiffOps
+                        in
+                            ([], v :: v2New)
+                    _ ->         
+                        let
+                            (v1New, v2New) = listAppendUpdateHelper v1 v2 restDiffOps
+                        in
+                            (v :: v1New, v2New)
+
+            DiffDelete :: restDiffOps ->
+                case v1 of 
+                    [] -> 
+                        case v2 of
+                            [] -> errorRes
+                            v2h :: v2t -> listAppendUpdateHelper [] v2t restDiffOps
+                    
+                    v1h :: v1t -> listAppendUpdateHelper v1t v2 restDiffOps
+
+            (DiffUpdate v)  :: restDiffOps->
+                case v1 of
+                    [] -> 
+                        let
+                            (_, v2New) = 
+                                case v2 of 
+                                    [] -> errorRes
+                                    v2h :: v2t -> listAppendUpdateHelper [] v2t restDiffOps
+                        in
+                            ([], v :: v2New)
+                    
+                    v1h :: v1t -> 
+                        let 
+                            (v1New, v2New) = listAppendUpdateHelper v1t v2 restDiffOps
+                        in
+                            (v :: v1New, v2New)
+
+            DiffKeep :: restDiffOps->
+                case v1 of
+                    [] ->
+                        case v2 of
+                            [] -> ([], [])
+                            v2h :: v2t ->
+                                let
+                                    (_, v2New) = listAppendUpdateHelper [] v2t restDiffOps
+                                in
+                                    ([], v2h :: v2New)
+                    v1h :: v1t ->
+                        let 
+                            (v1New, v2New) = listAppendUpdateHelper v1t v2 restDiffOps
+                        in
+                            (v1h :: v1New, v2New)
+
