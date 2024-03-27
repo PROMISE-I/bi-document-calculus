@@ -44,4 +44,4 @@ This is a direct manipulating programming system for incomplete programs.
 - click index.html
 
 ## Develop
-- elm make src/Main.elm --output=elm.js
+- elm make src/Main.elm --output=./build/elm.js
