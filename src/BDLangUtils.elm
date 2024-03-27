@@ -1178,11 +1178,11 @@ printChilds childs =
 appendName : String
 appendName = "append"
 flattenName : String
-flattenName = "$flatten$"
+flattenName = "flatten"
 mapName : String
-mapName = "$map$"
+mapName = "map"
 joinName : String
-joinName = "$join$"
+joinName = "join"
 
 -- pattern of primitive operation of list
 pAppend : Pattern
@@ -1519,8 +1519,8 @@ unifyLineSeparator input =
         replaceRN = String.replace "\r\n" "\n" input
         replaceR = String.replace "\r" "\n" replaceRN
 
-        _ = Debug.log "input" <| input
-        _ = Debug.log "output" <| replaceR
+        -- _ = Debug.log "input" <| input
+        -- _ = Debug.log "output" <| replaceR
 
     in
         replaceR
@@ -1534,7 +1534,7 @@ cost a b =
     else
         1
 
--- 生成操作列表
+-- Diff Operation
 generateEditOperations : a -> List a -> List a -> List (DiffOp a)
 generateEditOperations default l1 l2 =
     let
@@ -1634,3 +1634,31 @@ generateEditOperations default l1 l2 =
         case List.head <| List.reverse matrix of
             Just (_, ops) -> List.reverse ops
             Nothing -> []
+
+
+vConsToList : Value -> List Value
+vConsToList v =
+    case v of
+        VCons _ head tail -> head :: (vConsToList tail)
+
+        VNil _ -> []
+        
+        _ -> [VError "VCons to list Error: not a list value"]
+        
+
+getVConsId : Value -> Int
+getVConsId v =
+    case v of 
+        VNil id -> id
+
+        VCons id _ _ -> id
+
+        _ -> -1
+
+
+listToVCons : List Value -> Int -> Value
+listToVCons lst id = 
+    case lst of
+        [] -> VNil id
+
+        head :: tail -> VCons id head (listToVCons tail id)
