@@ -4,6 +4,9 @@ module BDLangUtils exposing (..)
 import BDUtils exposing (..)
 import BDSyntax exposing (..)
 import Debug exposing (toString)
+import List exposing (..)
+import Html exposing (th)
+import Array exposing (Array)
 
 printAST : Expr -> String
 printAST expr =
@@ -1521,3 +1524,113 @@ unifyLineSeparator input =
 
     in
         replaceR
+
+
+-- 计算两个元素的编辑代价
+cost : a -> a -> Int
+cost a b =
+    if a == b then
+        0
+    else
+        1
+
+-- 生成操作列表
+generateEditOperations : a -> List a -> List a -> List (DiffOp a)
+generateEditOperations default l1 l2 =
+    let
+        len1 = List.length l1
+        len2 = List.length l2
+        maxDist = len1 + len2 + 1
+
+        matrix =
+            List.range 0 len1
+                |> List.foldl
+                    (\i row ->
+                        (
+                            List.range 0 len2
+                                |> List.foldl
+                                    (\j cell ->
+                                        let
+                                            -- l1[i-1]
+                                            valInList1 = 
+                                                case List.head <| List.drop (i-1) l1 of
+                                                    Just v -> v
+                                                    Nothing -> default
+                                            -- l2[j-1]  
+                                            valInList2 = 
+                                                case List.head <| List.drop (j-1) l2 of
+                                                    Just v -> v
+                                                    Nothing -> default
+                                            errorRes = (-1, []) :: cell
+                                        in
+                                        
+                                            if i == 0 then
+                                                if j == 0 then
+                                                    (0, []) :: cell
+                                                else 
+                                                    -- matrix[0][j].second = (DiffInsert l2[j-1]) :: matrix[0][j-1].second
+                                                    case List.head cell of
+                                                        Just (_, ops) -> (j, (DiffInsert valInList2) :: ops) :: cell  -- add ops && cell in reverse 
+                                                        Nothing -> errorRes
+                                            else if j == 0 then
+                                                -- matrix[i][0].second = DiffDelete :: matrix[i-1][0].second, here we only preverse the former row, thus row is matrix[i-1]
+                                                case List.head row of  
+                                                    Just (_, ops) -> (i, DiffDelete :: ops) :: cell
+                                                    Nothing -> errorRes
+                                            else
+                                                let
+                                                    -- matrix[i][j].first = min(
+                                                    --      matrix[i-1][j-1] + (cost l1[i-1] l2[j-1]), 
+                                                    --      matrix[i-1][j], 
+                                                    --      matrix[j-1]
+                                                    --      )
+
+                                                    -- matrix[i-1][j-1]
+                                                    (topLeft, topLeftOps) = 
+                                                        case List.head <| List.drop (j-1) row of
+                                                            Just (v, ops) -> (v, ops)
+                                                            Nothing -> (maxDist, [])
+
+                                                    -- matrix[i-1][j]
+                                                    (top, topOps) = 
+                                                        case List.head <| List.drop j row of
+                                                            Just (v, ops) -> (v, ops) 
+                                                            Nothing -> (maxDist, [])
+                                                    
+                                                    -- matrix[i][j-1]
+                                                    (left, leftOps) = 
+                                                        case List.head cell of
+                                                            Just (v, ops) -> (v, ops)
+                                                            Nothing -> (maxDist, [])
+
+                                                    substitution = topLeft + cost valInList1 valInList2
+                                                    deletion = top + 1
+                                                    insertion = left + 1
+
+                                                    minCost =  
+                                                        case List.minimum [ substitution, deletion, insertion ] of
+                                                            Just v -> v
+                                                            Nothing -> maxDist
+
+
+                                                in
+                                                    if minCost == substitution && valInList1 /= valInList2 then
+                                                        (minCost, (DiffUpdate valInList2) :: topLeftOps) :: cell
+                                                    else if minCost == substitution && valInList1 == valInList2 then
+                                                        (minCost, DiffKeep :: topLeftOps) :: cell
+                                                    else if minCost == deletion then
+                                                        (minCost, DiffDelete :: topOps) :: cell
+                                                    else if minCost == insertion then
+                                                        (minCost, (DiffInsert valInList2) :: leftOps) :: cell
+                                                    else 
+                                                        errorRes
+                                    )
+                                    []
+                                |> List.reverse
+                        )
+                    )
+                    []
+    in
+        case List.head <| List.reverse matrix of
+            Just (_, ops) -> List.reverse ops
+            Nothing -> []
