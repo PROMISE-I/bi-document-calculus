@@ -16,7 +16,7 @@ view model =
             [ Html.div [Attr.id "menu-bar"]
 
                         [ Html.div [ Attr.id "title" ]
-                                    [ Html.text "Bidirectional Preview" ]
+                                    [ Html.text "Bidirectional Author" ]
 
                         , Html.button [ Attr.id "run-program"
                                     , Attr.class "btn" ]
