@@ -203,3 +203,10 @@ type alias MatchCaseRes =
     , ei : Expr
     , pi : Pattern
     }
+
+
+type DiffOp a
+    = DiffInsert a 
+    | DiffDelete 
+    | DiffUpdate a
+    | DiffKeep
