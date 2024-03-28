@@ -9,8 +9,6 @@ import BDHtmlParser exposing (parseHtml)
 import BDParser_ exposing (parse, parseVal)
 import BDDesugar exposing (..)
 import BDResugar exposing (..)
-import Html exposing (i)
-import Dict exposing (diff)
 
 
 updateCode : Model -> Code
