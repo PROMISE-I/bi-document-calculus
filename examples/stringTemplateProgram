@@ -1,0 +1,20 @@
+let xs = ["1", "2", "8"] in
+{#{% set (name, age, ageNum) = ("John", "20", 20) %}
+Hello, world: {{name}}, {{age}}
+---------------------------------------
+{% for x in xs %}
+    {{(\t => t + "!") (x+"!")}}
+{% endfor%}
+
+{% if ageNum >= 18 then %}
+    Wow!! An adult with the age of {{age}}
+{% else %}
+    Hi!! A little boy!
+{% endif %}
+{% set asm1 = ("+", "1", "2") %}
+{% set asm2 = ("-", "2", "5") %}
+{% set asmList = [asm1, asm2] %}
+    {% for (op, l, r) in asmList %}
+        {{op}} {{l}} {{r}}
+    {% endfor %}
+#}
