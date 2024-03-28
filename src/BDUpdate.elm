@@ -146,15 +146,15 @@ uneval venv expr newv =
                 (v1New, v2New) = listAppendUpdate venv e1 e2 newv
 
                 e1NewRes = uneval venv e1 v1New
-                e2NewRes = uneval venv e2 v2New
-                venvNew = mergeVEnv e1NewRes.venv e2NewRes.venv venv
+                e2NewRes = uneval e1NewRes.venv e2 v2New
+                venvNew = e2NewRes.venv
 
-                _ = Debug.log "e1" <| Debug.toString e1
-                _ = Debug.log "e2" <| Debug.toString e2
-                _ = Debug.log "v1New" <| Debug.toString v1New
-                _ = Debug.log "v2New" <| Debug.toString v2New
-                _ = Debug.log "e1New" <| Debug.toString e1NewRes.expr
-                _ = Debug.log "e2New" <| Debug.toString e2NewRes.expr
+                -- _ = Debug.log "e1" <| Debug.toString e1
+                -- _ = Debug.log "e2" <| Debug.toString e2
+                -- _ = Debug.log "v1New" <| Debug.toString v1New
+                -- _ = Debug.log "v2New" <| Debug.toString v2New
+                -- _ = Debug.log "e1New" <| Debug.toString e1NewRes.expr
+                -- _ = Debug.log "e2New" <| Debug.toString e2NewRes.expr
 
 
             in 
@@ -209,14 +209,14 @@ uneval venv expr newv =
                                                             VClosure np ne nvenv
                                                         
                                                         res3 =
-                                                            uneval venv (EFix defaultWS e2) newv2 
+                                                            uneval res2.venv (EFix defaultWS e2) newv2 
                                                     in
-                                                        { venv = venv
+                                                        { venv = res3.venv
                                                         , expr = EApp ws res2.expr res3.expr
                                                         }
 
                                                 Just (_, VFix e21) ->
-                                                        { venv = venv
+                                                        { venv = res2.venv
                                                         , expr = EApp ws res2.expr (EFix defaultWS e21)
                                                         }
                                                 
@@ -279,7 +279,7 @@ uneval venv expr newv =
                                             patternSubst res1.venv p
                                         
                                         res3 =
-                                            uneval venv e2 newv2 
+                                            uneval res2.venv e2 newv2 
 
                                         -- _ = Debug.log "uneval-patternsubst-e1" <| Debug.toString e1
                                         -- _ = Debug.log "uneval-patternsubst-e2" <| Debug.toString e2
@@ -298,8 +298,7 @@ uneval venv expr newv =
                                         
                                         _ ->
                                             let
-                                                newvenv =
-                                                    mergeVEnv res2.venv res3.venv venv
+                                                newvenv = res3.venv
 
                                             in
                                                 { venv = newvenv
@@ -395,10 +394,9 @@ uneval venv expr newv =
                             uneval venv e1 v1
 
                         res2 = 
-                            uneval venv e2 v2
+                            uneval res1.venv e2 v2
                         
-                        newvenv =
-                            mergeVEnv res1.venv res2.venv venv
+                        newvenv = res2.venv
                         
                     in
                         if eId == eoCons then
@@ -428,10 +426,9 @@ uneval venv expr newv =
                             uneval venv e1 v1
 
                         res2 = 
-                            uneval venv e2 v2
+                            uneval res1.venv e2 v2
                         
-                        newvenv =
-                            mergeVEnv res1.venv res2.venv venv
+                        newvenv = res2.venv
 
                     in
                         { venv = newvenv
@@ -451,13 +448,12 @@ uneval venv expr newv =
                             uneval venv e1 v1
 
                         res2 = 
-                            uneval venv e2 v2
+                            uneval res1.venv e2 v2
 
                         res3 = 
-                            uneval venv e3 v3
+                            uneval res2.venv e3 v3
                         
-                        newvenv =
-                            mergeVEnv4 res1.venv res2.venv res3.venv venv
+                        newvenv = res3.venv
 
                     in
                         { venv = newvenv
@@ -477,13 +473,12 @@ uneval venv expr newv =
                             uneval venv e1 v1
 
                         res2 = 
-                            uneval venv e2 v2
+                            uneval res1.venv e2 v2
 
                         res3 = 
-                            uneval venv e3 v3
+                            uneval res2.venv e3 v3
                         
-                        newvenv =
-                            mergeVEnv4 res1.venv res2.venv res3.venv venv
+                        newvenv = res3.venv
 
                     in
                         { venv = newvenv
@@ -1113,10 +1108,9 @@ checkChange venv ws op e1 e2 v1 v2 newv1 newv2 =
         let
             res1 = uneval venv e1 newv1
 
-            res2 = uneval venv e2 newv2
+            res2 = uneval res1.venv e2 newv2
 
-            newvenv =
-                mergeVEnv res1.venv res2.venv venv
+            newvenv = res2.venv
 
         in
             { venv = newvenv
