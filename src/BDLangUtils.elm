@@ -1614,6 +1614,8 @@ generateEditOperations default l1 l2 =
 
 
                                                 in
+                                                    -- the order of if is cirtical to the outcome of backward
+                                                    -- 1. substituion (Update) -> substitution (Keep) -> deletion (Delete) -> insertion (Insert)
                                                     if minCost == substitution && valInList1 /= valInList2 then
                                                         (minCost, (DiffUpdate valInList2) :: topLeftOps) :: cell
                                                     else if minCost == substitution && valInList1 == valInList2 then
