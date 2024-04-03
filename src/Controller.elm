@@ -1,12 +1,12 @@
-module BDController exposing (..)
+module Controller exposing (..)
 
-import BDModel exposing (..)
-import BDSyntax exposing (..)
-import BDLangUtils exposing (..)
-import BDParser_ exposing (parse)
+import Model exposing (..)
+import Syntax exposing (..)
+import LangUtils exposing (..)
+import Parser_ exposing (parse)
 import Debug exposing (toString)
-import BDEval exposing (eval)
-import BDDesugar exposing (..)
+import Eval exposing (eval)
+import Desugar exposing (..)
 
 
 evalCodeToModel : Code -> Model

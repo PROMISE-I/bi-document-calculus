@@ -1,13 +1,13 @@
-module BDView exposing (..)
+module View exposing (..)
 
 import Html exposing (Html)
 import Html.Attributes as Attr
 import Html.Events as Events
-import BDUtils exposing (nth)
+import Utils exposing (nth)
 import Debug exposing (toString)
-import BDModel exposing (Msg(..), Model, Mode(..))
-import BDLangUtils exposing (print)
-import BDSyntax exposing (Value(..), IndexedVEnv, VEnv, caseN)
+import Model exposing (Msg(..), Model, Mode(..))
+import LangUtils exposing (print)
+import Syntax exposing (Value(..), IndexedVEnv, VEnv, caseN)
 
 
 view : Model -> Html Msg

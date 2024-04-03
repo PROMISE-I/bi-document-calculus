@@ -1,6 +1,6 @@
-module BDModel exposing(..)
+module Model exposing(..)
 
-import BDSyntax exposing (..)
+import Syntax exposing (..)
 
 type alias Code = String
 type alias Output = String

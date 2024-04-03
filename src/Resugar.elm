@@ -1,7 +1,7 @@
-module BDResugar exposing (..)
-import BDSyntax exposing (..)
-import BDLangUtils exposing (..)
-import BDParser_ exposing (..)
+module Resugar exposing (..)
+import Syntax exposing (..)
+import LangUtils exposing (..)
+import Parser_ exposing (..)
 
 resugarWithoutPreclude : Expr -> Expr
 resugarWithoutPreclude e =

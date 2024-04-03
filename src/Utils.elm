@@ -1,4 +1,4 @@
-module BDUtils exposing (..)
+module Utils exposing (..)
 
 import List exposing (..)
 

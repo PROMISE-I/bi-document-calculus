@@ -1,12 +1,12 @@
-module BDParser_ exposing (..)
+module Parser_ exposing (..)
 
 import Set
 import Parser exposing (..)
-import BDSyntax exposing (..)
+import Syntax exposing (..)
 import Parser.Extras exposing (..)
 import Parser.Expression exposing (..)
 import Html exposing (b)
-import BDLangUtils exposing (unifyLineSeparator)
+import LangUtils exposing (unifyLineSeparator)
 
 
 mSpaces : Parser String

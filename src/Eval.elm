@@ -1,8 +1,8 @@
-module BDEval exposing (..)
+module Eval exposing (..)
 
-import BDModel exposing (..)
-import BDSyntax exposing (..)
-import BDLangUtils exposing (..)
+import Model exposing (..)
+import Syntax exposing (..)
+import LangUtils exposing (..)
 import Round
 
 eval :  VEnv -> Expr -> Value

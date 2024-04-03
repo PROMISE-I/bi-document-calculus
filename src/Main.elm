@@ -1,13 +1,13 @@
 port module Main exposing (..)
 
-import BDView exposing(view)
+import View exposing(view)
 import Browser exposing (..)
 import Html exposing (Html)
-import BDModel exposing (Msg(..), Model, Mode(..))
-import BDSyntax exposing (Value(..))
+import Model exposing (Msg(..), Model, Mode(..))
+import Syntax exposing (Value(..))
 import String exposing (left)
-import BDController exposing (evalCodeToModel)
-import BDUpdate exposing (updateCode)
+import Controller exposing (evalCodeToModel)
+import Update exposing (updateCode)
 
 main : Program () Model Msg
 main =
@@ -20,7 +20,7 @@ main =
 
 
 init : () -> ( Model, Cmd Msg )
-init _ = (BDModel.initModel, Cmd.none)
+init _ = (Model.initModel, Cmd.none)
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -74,7 +74,7 @@ update msg model =
 
 
 view : Model -> Html Msg
-view = BDView.view
+view = View.view
 
 
 port sendCode : (String, Bool) -> Cmd msg

@@ -1,7 +1,7 @@
-module BDDesugar exposing (..)
+module Desugar exposing (..)
 
-import BDSyntax exposing (..)
-import BDLangUtils exposing (..)
+import Syntax exposing (..)
+import LangUtils exposing (..)
 
 desugarWithPreclude : Expr -> Expr
 desugarWithPreclude expr = 

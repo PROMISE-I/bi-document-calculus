@@ -1,14 +1,14 @@
-module BDUpdate exposing (..)
+module Update exposing (..)
 
 import List exposing (..)
-import BDModel exposing (..)
-import BDSyntax exposing (..)
-import BDLangUtils exposing (..)
-import BDEval exposing (eval)
-import BDHtmlParser exposing (parseHtml)
-import BDParser_ exposing (parse, parseVal)
-import BDDesugar exposing (..)
-import BDResugar exposing (..)
+import Model exposing (..)
+import Syntax exposing (..)
+import LangUtils exposing (..)
+import Eval exposing (eval)
+import HtmlParser exposing (parseHtml)
+import Parser_ exposing (parse, parseVal)
+import Desugar exposing (..)
+import Resugar exposing (..)
 
 
 updateCode : Model -> Code

@@ -1,7 +1,7 @@
-module BDHtmlParser exposing (..)
+module HtmlParser exposing (..)
 
 import List exposing (map, foldr)
-import BDSyntax exposing (Value(..))
+import Syntax exposing (Value(..))
 import Html.Parser exposing (run, Node(..), Attribute)
 import String exposing (toList, trim, split, left)
 

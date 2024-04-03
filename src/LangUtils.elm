@@ -1,8 +1,8 @@
-module BDLangUtils exposing (..)
+module LangUtils exposing (..)
 
 
-import BDUtils exposing (..)
-import BDSyntax exposing (..)
+import Utils exposing (..)
+import Syntax exposing (..)
 import Debug exposing (toString)
 import List exposing (..)
 

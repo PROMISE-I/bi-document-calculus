@@ -1,4 +1,4 @@
-module BDSyntax exposing (..)
+module Syntax exposing (..)
 
 import Html.Attributes exposing (..)
 import Parser exposing (..)
