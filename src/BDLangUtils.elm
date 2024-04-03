@@ -5,8 +5,6 @@ import BDUtils exposing (..)
 import BDSyntax exposing (..)
 import Debug exposing (toString)
 import List exposing (..)
-import Html exposing (th)
-import Array exposing (Array)
 
 printAST : Expr -> String
 printAST expr =
