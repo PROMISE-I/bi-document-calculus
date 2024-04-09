@@ -77,7 +77,7 @@ tplSetName = "$tplSet$"
 tplIfName : String
 tplIfName = "$tplIf$"
 tplForeachName : String
-tplForeachName = "$$tplForeach"
+tplForeachName = "$tplForeach$"
 
 pPreclude : Pattern
 pPreclude = PVar defaultWS precludeName
@@ -126,7 +126,7 @@ type Expr
     | EBTuple WS Expr Expr
     | ETTuple WS Expr Expr Expr
     | StrTpl Template
-    | EHtml WS String Expr Expr Expr
+    | ENode WS String Expr Expr
     | EToStr WS Expr
     | EError Info
 
@@ -172,7 +172,7 @@ type Value
     | VClosure Pattern Expr VEnv
     | VBTuple Value Value
     | VTTuple Value Value Value 
-    | VHtml String Value Value Value
+    | VNode String Value Value
     | VError Info
 
 type alias VEnv = List (String, Value)

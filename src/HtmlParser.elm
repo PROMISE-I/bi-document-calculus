@@ -1,9 +1,8 @@
 module HtmlParser exposing (..)
 
-import List exposing (map, foldr)
 import Syntax exposing (Value(..))
 import Html.Parser exposing (run, Node(..), Attribute)
-import String exposing (toList, trim, split, left)
+import String exposing (toList, trim, left)
 
 parseHtml : String -> Value
 parseHtml s =
@@ -43,23 +42,11 @@ nodeToValue node =
                         in
                         case attrList of
                             [] ->
-                                VHtml s (VNil 0) (VNil 0) vChilds
-
-                            ("style", pro) :: [] ->
-                                VHtml s (pro    
-                                            |> split ";"
-                                            |> parseStyle) 
-                                    (VNil 0) vChilds
-                            
-                            ("style", pro) :: al ->
-                                VHtml s (pro
-                                        |> split ";"
-                                        |> parseStyle) 
-                                    (parseOtherPro al) vChilds
+                                VNode s (VNil 0) vChilds
 
                             al -> 
-                                VHtml s (VNil 0)
-                                (parseOtherPro al) vChilds
+                                VNode s 
+                                (parsePro al) vChilds
 
             Text s ->
                 stringToVCons <| toList s
@@ -77,41 +64,6 @@ parseChilds childs =
             VCons 0 (nodeToValue c) (parseChilds cds)
 
 
-parseStyle : List String -> Value
-parseStyle pro =
-    case pro of
-        s :: ps ->
-            if (trim s |> left 1) == "{" then
-                s |> trim |> toList |> stringToVCons
-            else
-                let
-                    nameAndValue =
-                        split ":" <| trim s
-
-                    proItem =
-                        case nameAndValue of
-                            n :: val :: [] ->
-                                VCons 0 (n |> trim |> toList |> stringToVCons)
-                                        (trim val 
-                                        |> split " "
-                                        |> map trim
-                                        |> map toList 
-                                        |> map stringToVCons
-                                        |> foldr (VCons 0) (VNil 0))
-
-                            _ ->
-                                VError "Parse Style Error."
-                in
-                case proItem of
-                    VError _ ->
-                        parseStyle ps
-                    
-                    _ ->
-                        VCons 0 proItem (parseStyle ps)
-
-        [] -> VNil 0
-
-
 stringToVCons :  List Char -> Value
 stringToVCons lc =
     case lc of
@@ -121,11 +73,11 @@ stringToVCons lc =
         c :: cs ->  VCons 1 (VChar c) (stringToVCons cs)
 
 
-parseOtherPro : List Attribute -> Value
-parseOtherPro al =
+parsePro : List Attribute -> Value
+parsePro al =
     case al of
         ("contenteditable", _) :: al_ ->
-            parseOtherPro al_ 
+            parsePro al_ 
 
         (name, value) :: al_ ->
             if (trim name |> left 1) == "{" then
@@ -133,7 +85,7 @@ parseOtherPro al =
                     proItem =
                         name |> trim |> toList |> stringToVCons 
                 in
-                    VCons 0 proItem (parseOtherPro al_)
+                    VCons 0 proItem (parsePro al_)
             else
                 let
                     proItem =
@@ -141,7 +93,7 @@ parseOtherPro al =
                         (VCons 0 (value |> trim |> toList |> stringToVCons)
                             (VNil 0))
                 in
-                    VCons 0 proItem (parseOtherPro al_)
+                    VCons 0 proItem (parsePro al_)
         
         [] ->
             VNil 0

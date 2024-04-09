@@ -24,7 +24,7 @@ evalCodeToModel code =
 
                     (output, mode) =
                         case res of
-                            VHtml _ _ _ _ ->
+                            VNode _ _ _ ->
                                 (print res, HTML)
                             _ ->
                                 (print res, Console)

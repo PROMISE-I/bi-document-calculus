@@ -117,13 +117,12 @@ desugar expr =
                     (desugarTemplate t)
             )
 
-        EHtml ws s e1 e2 e3 -> 
+        ENode ws s e1 e2 -> 
             let
                 de1 = desugar e1
                 de2 = desugar e2
-                de3 = desugar e3
             in
-                EHtml ws s de1 de2 de3
+                ENode ws s de1 de2
 
         EToStr ws e -> 
             let
@@ -270,6 +269,8 @@ desugarStringTemplate t =
                             ws
                             lamTplForeach
                             (desugarStringTemplate foreachSpliceT)
+                
+                -- TplNode _ _ _ _ -> EError "Template Part(node"
                     
                 TplSplice e -> 
                     EApp

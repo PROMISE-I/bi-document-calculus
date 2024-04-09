@@ -269,18 +269,16 @@ eval venv expr =
         EParens _ e ->
             eval venv e 
 
-        EHtml _ s e1 e2 e3 ->
-            let 
+        ENode _ s e1 e2 ->
+            let
                 v1 = 
-                    eval venv e1 
-
+                    eval venv e1
+            
                 v2 = 
-                    eval venv e2 
-
-                v3 = 
-                    eval venv e3 
+                    eval venv e2
             in
-                VHtml s v1 v2 v3
+                VNode s v1 v2
+            
 
         EToStr _ e ->
             let

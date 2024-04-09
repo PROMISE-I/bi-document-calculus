@@ -5,7 +5,6 @@ import Parser exposing (..)
 import Syntax exposing (..)
 import Parser.Extras exposing (..)
 import Parser.Expression exposing (..)
-import Html exposing (b)
 import LangUtils exposing (unifyLineSeparator)
 
 
@@ -24,14 +23,13 @@ parse =
     run (expr |. end)
 
 
-html : Parser Expr
-html =
-    succeed (\n s1 e1 s2 e2 s3 e3 ->
-            EHtml ([s1, s2, s3], defaultId) n e1 e2 e3)
-    |. symbol "Html."
-    |= varName
+node : Parser Expr
+node =
+    succeed (\s1 n s2 e1 s3 e2 ->
+            ENode ([s1, s2, s3], defaultId) n e1 e2)
+    |. symbol "Node"
     |= mSpaces
-    |= lazy (\_ -> aexpr)
+    |= varName
     |= mSpaces
     |= lazy (\_ -> aexpr)
     |= mSpaces
@@ -348,7 +346,7 @@ aexpr =
     , string
     , char
     , lazy (\_ -> strTpl)
-    , html
+    , node
     , tostr
     ]
 

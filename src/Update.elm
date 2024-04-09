@@ -385,7 +385,7 @@ uneval venv expr newv =
                     }
         
 
-        ECons (pads, eId) e1 e2 ->
+        ECons (pads, eId) e1 e2 -> -- TODO: change update rules to Sketch-n-Sketch
             case newv of
                 VCons vId v1 v2 ->
                     let
@@ -467,9 +467,9 @@ uneval venv expr newv =
                     , expr = EError "Tuple3 Update Error."
                     }
 
-        EHtml ws s e1 e2 e3 ->
+        ENode ws s e1 e2 ->
             case newv of
-                VHtml _ v1 v2 v3 ->
+                VNode _ v1 v2 ->
                     let
                         res1 =
                             uneval venv e1 v1
@@ -477,20 +477,17 @@ uneval venv expr newv =
                         res2 = 
                             uneval venv e2 v2
 
-                        res3 = 
-                            uneval venv e3 v3
-                        
                         newvenv =
-                            mergeVEnv4 res1.venv res2.venv res3.venv venv
+                            mergeVEnv res1.venv res2.venv venv
 
                     in
                         { venv = newvenv
-                        , expr = EHtml ws s res1.expr res2.expr res3.expr
+                        , expr = ENode ws s res1.expr res2.expr
                         }
 
                 _ -> let _ = newv in
                     { venv = []
-                    , expr = EError "HTML Update Error."
+                    , expr = EError "Node Update Error."
                     }
 
         ENil (pads, eId) ->

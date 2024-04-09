@@ -96,7 +96,7 @@ resugar expr =
         
         EParens ws e -> EParens ws (resugar e)
 
-        EHtml ws s e1 e2 e3 -> EHtml ws s (resugar e1) (resugar e2) (resugar e3)
+        ENode ws s e1 e2 -> ENode ws s (resugar e1) (resugar e2)
 
         EToStr ws e -> EToStr ws (resugar e)
 

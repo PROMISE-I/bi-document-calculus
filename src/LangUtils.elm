@@ -170,9 +170,8 @@ printAST expr =
         StrTpl t ->
             "{#" ++ (printTpl t) ++ "#}"
 
-        EHtml ([ws1, ws2, ws3], 0) s e1 e2 e3 ->
-            "Html." ++ s ++ ws1 ++ (printAST e1) ++ (ws2) ++
-            (printAST e2) ++ ws3 ++ (printAST e3)
+        ENode ([ws1, ws2, ws3], 0) s e1 e2 ->
+            "Node" ++ ws1 ++ s ++ ws2 ++ (printAST e1) ++ (ws3) ++ (printAST e2)
 
         EToStr ([ws], 0) e ->
             "toString" ++ ws ++ (printAST e)
@@ -409,15 +408,14 @@ processBeforePrint expr env =
             in
                 ETTuple ws e1_ e2_ e3_
 
-        EHtml ws s e1 e2 e3 ->
+        ENode ws s e1 e2 ->
             let 
                 e1_ = processBeforePrint e1 env
             
                 e2_ = processBeforePrint e2 env
 
-                e3_ = processBeforePrint e3 env
             in
-                EHtml ws s e1_ e2_ e3_
+                ENode ws s e1_ e2_
 
         EToStr ws e ->
             let
@@ -549,15 +547,14 @@ processAfterParse expr env =
             in
                 ETTuple ws e1_ e2_ e3_
 
-        EHtml ws s e1 e2 e3 ->
+        ENode ws s e1 e2 ->
             let 
                 e1_ = processAfterParse e1 env 
 
                 e2_ = processAfterParse e2 env
 
-                e3_ = processAfterParse e3 env
             in
-                EHtml ws s e1_ e2_ e3_
+                ENode ws s e1_ e2_
 
         EToStr ws e ->
             let
@@ -692,7 +689,7 @@ print v  =
                 str3 = print v3
             in
             "( "++str1++", "++str2++", "++str3++" )"
-        VHtml s v1 v2 v3 -> printHTML s v1 v2 v3
+        VNode s v1 v2 -> printNode s v1 v2
 
 printList : Value -> Value -> String
 printList v vs =
@@ -1009,27 +1006,16 @@ lengthUntil s venv =
                 1 + (lengthUntil s vv)
 
 
-printHTML : String -> Value -> Value -> Value -> String
-printHTML nodeName style attr childs =
+printNode : String -> Value -> Value -> String
+printNode nodeName attr childs = 
     let
-
-        ststr = printStyle style
-        
-        st =
-            case style of
-                VNil 0 ->
-                    ""
-                _ ->
-                    " style=\"" ++ ststr ++ "\""
-
         at = printAttr attr
-
-        cd = printChilds childs
+        cd = printChilds childs    
     in
-        "<" ++ nodeName ++ st ++" " ++
-        "contenteditable=\"true\" " ++ at ++ ">" ++ cd ++
-        "</" ++ nodeName ++ ">"
-
+        "<" ++ nodeName ++ " " ++ 
+        "contenteditable=\"true\" " ++ at ++ ">" ++ cd ++ 
+        "</" ++ nodeName ++ ">" 
+    
 
 printStyle : Value -> String
 printStyle style =
@@ -1145,7 +1131,7 @@ printChilds childs =
 
         VCons 0 c cs ->
             case c of
-                VHtml _ _ _ _ ->
+                VNode _ _ _ ->
                     let
                         str1 = print c
 
