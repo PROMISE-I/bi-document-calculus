@@ -1111,7 +1111,7 @@ printAttr attr =
 printOtherPro : Value -> String
 printOtherPro p =
     case p of
-        VCons 0 n (VCons 0 v (VNil 0)) ->
+        VBTuple n v ->  
             let
                 str1 = printStrNoQuoOrHole n
 

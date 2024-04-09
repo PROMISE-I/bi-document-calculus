@@ -89,9 +89,9 @@ parsePro al =
             else
                 let
                     proItem =
-                        VCons 0 (name |> trim |> toList |> stringToVCons)
-                        (VCons 0 (value |> trim |> toList |> stringToVCons)
-                            (VNil 0))
+                        VBTuple 
+                            (name |> trim |> toList |> stringToVCons)
+                            (value |> trim |> toList |> stringToVCons)
                 in
                     VCons 0 proItem (parsePro al_)
         

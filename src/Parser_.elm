@@ -23,8 +23,8 @@ parse =
     run (expr |. end)
 
 
-node : Parser Expr
-node =
+node_ : Parser Expr
+node_ =
     succeed (\s1 n s2 e1 s3 e2 ->
             ENode ([s1, s2, s3], defaultId) n e1 e2)
     |. symbol "Node"
@@ -140,6 +140,7 @@ varName =
             , "nil"
             , "true"
             , "false"
+            , "Node"
             , "toString"
             -- reserved for template
             , "set"
@@ -346,7 +347,7 @@ aexpr =
     , string
     , char
     , lazy (\_ -> strTpl)
-    , node
+    , node_
     , tostr
     ]
 
