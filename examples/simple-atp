@@ -9,7 +9,7 @@ let asmList = [asm1, asm2] in
     <div class="c1" style="color: red;">ASM Code: </div>
     <ul>
         {% for (op, l, r) in asmList %}
-        <li>{{op}} " " {{l}} " " {{r}}</li>
+        <li>{{op}} {{l}} {{r}}</li>
         {% endfor %}
     </ul>
 *}
