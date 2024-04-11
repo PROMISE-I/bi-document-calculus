@@ -13,11 +13,6 @@ defaultWS = ([], 0)
 defaultId : number
 defaultId = 0
 
-headWS : WS
-headWS = ([" ", " "], eoSquare)
-tailWS : WS
-tailWS = ([" "], eoElm)
-
 -- VCons: 
 vsId : number
 vsId = 1    -- String
