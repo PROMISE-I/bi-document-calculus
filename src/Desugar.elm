@@ -114,7 +114,7 @@ desugar expr =
                 EApp
                     defaultWS
                     (EApp defaultWS eVarJoin empStrExpr)
-                    (desugarTemplate headWS t)
+                    (desugarTemplate t)
             )
         
         TreeTpl ws t ->
@@ -127,7 +127,7 @@ desugar expr =
                             ws
                             "div"
                             (ENil ([], eoElm))
-                            (desugarTemplate headWS t)
+                            (desugarTemplate t)
                     )
             )
 
@@ -170,12 +170,12 @@ desugarBranch branch =
                 BCom ws db1 db2
                         
 
-desugarTemplate : WS -> Template -> Expr
-desugarTemplate ws t = 
+desugarTemplate : Template -> Expr
+desugarTemplate t = 
     case t of
         TCons ctx tPart restTemplate -> 
             let
-                desugaredRestTemplate = desugarTemplate tailWS restTemplate
+                desugaredRestTemplate = desugarTemplate restTemplate
             in
             
             case tPart of
@@ -184,26 +184,26 @@ desugarTemplate ws t =
                     EApp 
                         defaultWS
                         lamTplStr
-                        (ECons ws e desugaredRestTemplate)
+                        (ECons defaultWS e desugaredRestTemplate)
                                 
                 TplNode tpWS n e t1 -> 
                     let
                         desugaredAttr = desugar e
-                        desugaredT1 = desugarTemplate headWS t1
+                        desugaredT1 = desugarTemplate t1
                         desugaredTplNode = ENode defaultWS n desugaredAttr desugaredT1
                     in
                     -- make unique identification for resugar
                         EApp
                             tpWS
                             lamTplNode
-                            (ECons ws desugaredTplNode desugaredRestTemplate)
+                            (ECons defaultWS desugaredTplNode desugaredRestTemplate)
 
                 TplExpr tpWS e -> 
                     -- make unique identification for resugar
                     EApp 
                         tpWS
                         lamTplExpr       
-                        (ECons ws e desugaredRestTemplate) -- TODO: 忘记 deusgar e 了
+                        (ECons defaultWS e desugaredRestTemplate) -- TODO: 忘记 deusgar e 了
 
                 TplSet tpWS p e -> 
                     -- make unique identification for resugar
@@ -214,8 +214,8 @@ desugarTemplate ws t =
 
                 TplIf tpWS e t1 t2 -> 
                     let
-                        desugaredT1 = desugarTemplate headWS t1
-                        desugaredT2 = desugarTemplate headWS t2
+                        desugaredT1 = desugarTemplate t1
+                        desugaredT2 = desugarTemplate t2
                         ifSpliceT = 
                             TCons 
                                 ctx
@@ -249,11 +249,11 @@ desugarTemplate ws t =
                         EApp
                             tpWS
                             lamTplIf        
-                            (desugarTemplate ws ifSpliceT)
+                            (desugarTemplate ifSpliceT)
                     
                 TplForeach tpWS p e t1 -> 
                     let
-                        desugaredT1 = desugarTemplate headWS t1
+                        desugaredT1 = desugarTemplate t1
                         foreachSpliceT =                         
                             TCons 
                                 ctx
@@ -282,7 +282,7 @@ desugarTemplate ws t =
                         EApp 
                             tpWS
                             lamTplForeach
-                            (desugarTemplate ws foreachSpliceT)
+                            (desugarTemplate foreachSpliceT)
                     
                 TplSplice e -> 
                     EApp
@@ -291,4 +291,4 @@ desugarTemplate ws t =
                         desugaredRestTemplate
 
 
-        TNil _ -> ENil ws
+        TNil _ -> ENil defaultWS
