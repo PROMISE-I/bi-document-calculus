@@ -1,0 +1,15 @@
+let (name, age) = ("John", 20) in
+let asm1 = ("+", "1", "2") in
+let asm2 = ("-", "2", "5") in
+let asmList = [asm1, asm2] in
+{*
+    <h1>Diary</h1>
+    <p>Today I am going shopping for: </p>
+    Hello, world: {{name}} , {{toString age}}
+    <div class="c1" style="color: red;">ASM Code: </div>
+    <ul>
+        {% for (op, l, r) in asmList %}
+        <li>{{op}} " " {{l}} " " {{r}}</li>
+        {% endfor %}
+    </ul>
+*}

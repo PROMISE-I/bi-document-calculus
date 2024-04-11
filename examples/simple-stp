@@ -1,0 +1,19 @@
+let (name, age) = ("John", 20) in
+let asm1 = ("+", "1", "2") in
+let asm2 = ("-", "2", "5") in
+let asmList = [asm1, asm2] in
+{#
+
+Hello, world: {{name}}, {{toString age}}
+---------------------------------------
+    {% if age >= 18 then %}
+    Wow!! An adult with the age of {{toString age}}.
+    {% else %}
+    Hi!! A little boy!
+    {% endif %}
+    
+    {% for (op, l, r) in asmList %}
+    {{op}} {{l}} {{r}}
+    {% endfor %}
+
+#}
