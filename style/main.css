@@ -122,7 +122,7 @@ table td {
 
 #output {
     position: absolute;
-    text-align: center;
+    text-align: left;
     background-color: white;
     top: 4.5%;
     left: 55%;
