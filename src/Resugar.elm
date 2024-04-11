@@ -60,13 +60,27 @@ resugar expr =
         EApp ws e1 e2 -> 
             if e1 == (EApp defaultWS eVarJoin empStrExpr) then
                 let
-                    tRes = resugarTemplatePart stctx e2
+                    tRes = resugarTemplate stctx e2
                 in
                     case tRes of
                         Result.Ok t -> StrTpl t
                         Result.Err info -> EError info
-            else 
+
+            else if e1  == lamTreeTpl then
+                case e2 of 
+                    ENode ws1 "div" (ENil ([], _)) childs ->
+                        let
+                            tRes = resugarTemplate atctx childs
+                        in
+                            case tRes of
+                                Result.Ok t -> TreeTpl ws1 t
+                                Result.Err info -> EError info
+
+                    _ -> EError ("Resugar Template Error: 02\n" ++ (Debug.toString expr))
+
+            else  
                 EApp ws (resugar e1) (resugar e2)
+            
 
         EInt ws n -> EInt ws n
 
@@ -111,16 +125,16 @@ resugarBranch branch =
         
         BCom ws b1 b2 -> BCom ws (resugarBranch b1) (resugarBranch b2)
 
-resugarTemplatePart : TplCtx -> Expr -> Result String Template
-resugarTemplatePart ctx expr =
+resugarTemplate : TplCtx -> Expr -> Result String Template
+resugarTemplate ctx expr =
     case expr of
         -- All template parts desugar to EApp of e1 and e2, where e1 is identity and e2 is the real expr
-        EApp ws e1 e2 -> 
+        EApp tpWS e1 e2 -> 
             if e1 == lamTplStr then
                 case e2 of 
                     ECons _ userStr restExpr -> 
                         let
-                            restTPartsRes = resugarTemplatePart ctx restExpr
+                            restTPartsRes = resugarTemplate ctx restExpr
                         in
                             case restTPartsRes of
                                 Result.Ok restTemplate -> 
@@ -130,16 +144,40 @@ resugarTemplatePart ctx expr =
 
                     _ -> Result.Err "Resugar Template Part Error: 03"
 
+            else if e1 == lamTplNode then
+                case e2 of
+                    ECons _ (ENode _ n attrsExpr childsExpr) restExpr ->
+                        let
+                            restTPartsRes = resugarTemplate ctx restExpr
+
+                        in
+                            case restTPartsRes of
+                                Result.Ok restTemplate ->
+                                    let
+                                        childsTplRes = resugarTemplate ctx childsExpr
+                                    in
+                                        case childsTplRes of
+                                            Result.Ok childsTpl ->
+                                                let
+                                                    nodeTplPart = TplNode tpWS n attrsExpr childsTpl
+                                                in
+                                                    Result.Ok (TCons ctx nodeTplPart restTemplate)
+                                            
+                                            Result.Err info -> Result.Err info
+                                
+                                Result.Err info -> Result.Err info
+                    
+                    _ -> Result.Err "Resugar Template Part Error: 04"
 
             else if e1 == lamTplExpr then
                 case e2 of
                     ECons _ userExpr restExpr ->
                         let
-                            restTPartsRes = resugarTemplatePart ctx restExpr
+                            restTPartsRes = resugarTemplate ctx restExpr
                         in
                             case restTPartsRes of
                                 Result.Ok restTemplate ->
-                                    Result.Ok (TCons ctx (TplExpr ws userExpr) restTemplate)
+                                    Result.Ok (TCons ctx (TplExpr tpWS userExpr) restTemplate)
 
                                 Result.Err info -> Result.Err info
 
@@ -150,11 +188,11 @@ resugarTemplatePart ctx expr =
                 case e2 of
                     ELet _ p e restExpr ->
                         let
-                            restTPartsRes = resugarTemplatePart ctx restExpr
+                            restTPartsRes = resugarTemplate ctx restExpr
                         in
                             case restTPartsRes of
                                 Result.Ok restTemplate ->
-                                    Result.Ok (TCons ctx (TplSet ws p e) restTemplate)
+                                    Result.Ok (TCons ctx (TplSet tpWS p e) restTemplate)
 
                                 Result.Err info -> Result.Err info
                     
@@ -169,7 +207,7 @@ resugarTemplatePart ctx expr =
                     EApp _ (EApp _ (EVar _ apd) eIf) restExpr ->
                         if apd == appendName then 
                             let
-                                restTPartsRes = resugarTemplatePart ctx restExpr
+                                restTPartsRes = resugarTemplate ctx restExpr
                             in
                                 case restTPartsRes of
                                     Result.Ok restTParts ->
@@ -195,15 +233,15 @@ resugarTemplatePart ctx expr =
                                                 condExpr ->
                                                     if cName1 == caseN && cName2 == caseN then  
                                                         let
-                                                            thenTplRes = resugarTemplatePart ctx thenExpr
-                                                            elseTplRes = resugarTemplatePart ctx elseExpr
+                                                            thenTplRes = resugarTemplate ctx thenExpr
+                                                            elseTplRes = resugarTemplate ctx elseExpr
                                                         in
                                                             case thenTplRes of
                                                                 Result.Ok thenTpl ->
                                                                     case elseTplRes of
                                                                         Result.Ok elseTpl ->
                                                                             let 
-                                                                                ifTplPart = TplIf ws condExpr thenTpl elseTpl
+                                                                                ifTplPart = TplIf tpWS condExpr thenTpl elseTpl
                                                                             in
                                                                                 Result.Ok (TCons ctx ifTplPart restTParts)
                                                                     
@@ -232,7 +270,7 @@ resugarTemplatePart ctx expr =
                     EApp _ (EApp _ (EVar _ apd) eForeach) restExpr ->
                         if apd == appendName then 
                             let
-                                restTPartsRes = resugarTemplatePart ctx restExpr
+                                restTPartsRes = resugarTemplate ctx restExpr
                             in
                                 case restTPartsRes of
                                     Result.Ok restTParts ->
@@ -253,12 +291,12 @@ resugarTemplatePart ctx expr =
                                                 ) ->
                                                     if flat == flattenName && mp == mapName then
                                                         let
-                                                            foreachBodyTplRes = resugarTemplatePart ctx foreachBodyExpr
+                                                            foreachBodyTplRes = resugarTemplate ctx foreachBodyExpr
                                                         in
                                                             case foreachBodyTplRes of
                                                                 Result.Ok foreachBodyTpl ->
                                                                     let
-                                                                        foreachTplPart = TplForeach ws p e foreachBodyTpl
+                                                                        foreachTplPart = TplForeach tpWS p e foreachBodyTpl
                                                                     in
                                                                     
                                                                         Result.Ok (TCons ctx foreachTplPart restTParts)
