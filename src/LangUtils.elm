@@ -169,9 +169,12 @@ printAST expr =
         
         StrTpl t ->
             "{#" ++ (printTpl t) ++ "#}"
+        
+        TreeTpl ([ws1, ws2], _) t ->
+            "{*" ++ ws1 ++ (printTpl t) ++ "*}" ++ ws2
 
-        ENode ([ws1, ws2, ws3], 0) s e1 e2 ->
-            "Node" ++ ws1 ++ s ++ ws2 ++ (printAST e1) ++ (ws3) ++ (printAST e2)
+        ENode ([ws1, ws2], 0) s e1 e2 ->
+            "Node" ++ ws1 ++ s ++ ws2 ++ (printAST e1) ++ (printAST e2)
 
         EToStr ([ws], 0) e ->
             "toString" ++ ws ++ (printAST e)
@@ -179,7 +182,7 @@ printAST expr =
         EError info ->
             info
         
-        _ -> "Print Error: 01."
+        _ -> "Print Error: 01." ++ (Debug.toString expr)
 
 
 printPattern : Pattern -> String
@@ -271,43 +274,103 @@ printBranch b =
 printTpl : Template -> String
 printTpl t =
     case t of
-        TCons _ tplPart restTpl ->
-            (printTplPart tplPart) ++ (printTpl restTpl)
+        TCons ctx tplPart restTpl ->
+            (printTplPart ctx tplPart) ++ (printTpl restTpl)
 
         TNil _ -> ""
 
-printTplPart : TplPart -> String
-printTplPart tplPart = 
-    case tplPart of
-        TplStr s -> 
-            case s of 
-                -- substitute esQUo(3) -> esElm to avoid print quotes
-                ECons (_, 3) e1 e2 ->
-                    printAST (ECons ([], esElm) e1 e2)
+printTplPart : TplCtx -> TplPart -> String
+printTplPart ctx tplPart = 
+    if ctx == stctx then
+        case tplPart of
+            TplStr s -> 
+                case s of 
+                    -- substitute esQUo(3) -> esElm to avoid print quotes
+                    ECons (_, 3) e1 e2 ->
+                        printAST (ECons ([], esElm) e1 e2)
 
-                ENil _ -> ""
+                    ENil _ -> ""
 
-                _ -> "Print Error: 03"
+                    _ -> "Print Error: 03"
 
-        TplExpr ([ws1, ws2], _) e -> 
-            "{{" ++ ws1 ++ (printAST e) ++ ws2 ++"}}"
+            TplExpr ([ws], _) e -> 
+                "{{" ++ ws ++ (printAST e) ++"}}"
 
-        TplSet ([ws1, ws2, ws3, ws4, ws5], _) p e ->
-            "{%" ++ ws1 ++ "set" ++ ws2 ++ (printPattern p) ++ ws3 ++ "=" ++ ws4 ++ (printAST e) ++ ws5 ++ "%}"
+            TplSet ([ws1, ws2, ws3], _) p e ->
+                "{%" ++ ws1 ++ "set" ++ ws2 ++ (printPattern p) ++ "=" ++ ws3 ++ (printAST e) ++ "%}"
 
-        TplIf ([ws1, ws2, ws3, ws4, ws5, ws6, ws7, ws8], _) e t1 t2 ->
-            "{%" ++ ws1 ++ "if" ++ ws2 ++ (printAST e) ++ ws3 ++ "then" ++ ws4 ++ "%}" ++
-            (printTpl t1) ++ 
-            "{%" ++ ws5 ++ "else" ++ ws6 ++ "%}" ++
-            (printTpl t2) ++ 
-            "{%" ++ ws7 ++ "endif" ++ ws8 ++ "%}"
-        
-        TplForeach ([ws1, ws2, ws3, ws4, ws5, ws6, ws7], _) p e t -> 
-            "{%" ++ ws1 ++ "for" ++ ws2 ++ (printPattern p) ++ ws3 ++ "in" ++ ws4 ++ (printAST e) ++ ws5 ++ "%}" ++ 
-            (printTpl t) ++ 
-            "{%" ++ ws6 ++ "endfor" ++ ws7 ++ "%}"
+            TplIf ([ws1, ws2, ws3, ws4, ws5, ws6, ws7], _) e t1 t2 ->
+                "{%" ++ ws1 ++ "if" ++ ws2 ++ (printAST e) ++ "then" ++ ws3 ++ "%}" ++
+                (printTpl t1) ++ 
+                "{%" ++ ws4 ++ "else" ++ ws5 ++ "%}" ++
+                (printTpl t2) ++ 
+                "{%" ++ ws6 ++ "endif" ++ ws7 ++ "%}"
+            
+            TplForeach ([ws1, ws2, ws3, ws4, ws5], _) p e t -> 
+                "{%" ++ ws1 ++ "for" ++ ws2 ++ (printPattern p) ++ "in" ++ ws3 ++ (printAST e) ++ "%}" ++ 
+                (printTpl t) ++ 
+                "{%" ++ ws4 ++ "endfor" ++ ws5 ++ "%}"
 
-        _ -> "Print Error: 02"
+            _ -> "Print Error: 02"
+    else
+        case tplPart of
+            TplStr s -> 
+                case s of 
+                    -- substitute esQUo(3) -> esElm to avoid print quotes
+                    ECons (_, 3) e1 e2 ->
+                        printAST (ECons ([], esElm) e1 e2)
+
+                    ENil _ -> ""
+
+                    _ -> "Print Error: 03"
+            
+            TplNode ([ws1, ws2, ws3], _) n e t ->
+                "<" ++ n ++ ws1 ++ (printTplNodeAttr e) ++ ">" ++ 
+                ws2 ++ (printTpl t) ++ 
+                "</" ++ n ++ ">" ++ ws3
+
+            TplExpr ([ws1, ws2], _) e -> 
+                "{{" ++ ws1 ++ (printAST e) ++"}}" ++ ws2
+
+            TplSet ([ws1, ws2, ws3, ws4], _) p e ->
+                "{%" ++ ws1 ++ "set" ++ ws2 ++ (printPattern p) ++ "=" ++ ws3 ++ (printAST e) ++ "%}" ++ ws4
+
+            TplIf ([ws1, ws2, ws3, ws4, ws5, ws6, ws7, ws8, ws9], _) e t1 t2 ->
+                "{%" ++ ws1 ++ "if" ++ ws2 ++ (printAST e) ++ "then" ++ ws3 ++ "%}" ++
+                ws4 ++ (printTpl t1) ++ 
+                "{%" ++ ws5 ++ "else" ++ ws6 ++ "%}" ++
+                ws7 ++ (printTpl t2) ++ 
+                "{%" ++ ws8 ++ "endif" ++ ws9 ++ "%}"
+            
+            TplForeach ([ws1, ws2, ws3, ws4, ws5, ws6, ws7], _) p e t -> 
+                "{%" ++ ws1 ++ "for" ++ ws2 ++ (printPattern p) ++ "in" ++ ws3 ++ (printAST e) ++ "%}" ++ 
+                ws4 ++ (printTpl t) ++ 
+                "{%" ++ ws5 ++ "endfor" ++ ws6 ++ "%}" ++ ws7
+
+            _ -> "Print Error: 02"
+
+
+printTplNodeAttr : Expr -> String
+printTplNodeAttr attrs = 
+    case attrs of
+        ECons _ attr restAttrs ->
+            case attr of
+                EBTuple ([ws1, ws2], _) n v ->
+                    case n of
+                        ECons (_, 3) e1 e2 ->
+                            let
+                                nWithoutQuo = ECons ([], esElm) e1 e2 
+                            in
+                                (printAST nWithoutQuo) ++ ws1 ++ "=" ++ ws2 ++ (printAST v) ++ 
+                                (printTplNodeAttr restAttrs)
+
+                        _ -> "Print Error: 14"
+                
+                _ -> "Print Error: 12" ++ (Debug.toString attr)
+
+        ENil _ -> "" 
+
+        _ -> "Print Error: 13"
 
 -- processBeforePrint: 给 case 的 branch 去编号，BNSin -> BSin
 
@@ -785,7 +848,7 @@ patternSubst env p =
                 
                 Nothing  ->
                     let _ = Debug.log "env" <| s ++ (Debug.toString env) in
-                    VError ("Pattern Substitution Error: 01.\n" ++ s)
+                    VError ("Pattern Substitution Error: 01." ++ s)
         
         PCons (_, id) p1 p2 ->
             if id == psQuo || id == psElm then
@@ -885,38 +948,51 @@ valueToExpr v =
         VChar c ->
             EChar defaultWS c
 
-        VCons _ v1 v2 ->
+        VCons id v1 v2 ->
             let
                 e1 =
-                    valueToExpr v1
+                    valueToExpr v1 |> addQuoOrSquareForList
 
                 e2 =
                     valueToExpr v2
             in
-                ECons defaultWS e1 e2
+                if id == vsId then
+                    ECons ([], esElm) e1 e2
+                else
+                    ECons ([" "], eoElm) e1 e2
 
         VBTuple v1 v2 ->
             let
                 e1 =
-                    valueToExpr v1 
+                    valueToExpr v1 |> addQuoOrSquareForList
 
                 e2 =
-                    valueToExpr v2 
+                    valueToExpr v2 |> addQuoOrSquareForList
             in
                 EBTuple defaultWS e1 e2
 
         VTTuple v1 v2 v3 ->
             let
                 e1 =
-                    valueToExpr v1 
+                    valueToExpr v1 |> addQuoOrSquareForList 
 
                 e2 =
-                    valueToExpr v2 
+                    valueToExpr v2 |> addQuoOrSquareForList 
 
                 e3 =
-                    valueToExpr v3 
+                    valueToExpr v3 |> addQuoOrSquareForList 
             in
                 ETTuple defaultWS e1 e2 e3
+        
+        VNode n v1 v2 ->
+            let
+                e1 = 
+                    valueToExpr v1 |> addQuoOrSquareForList
+
+                e2 = 
+                    valueToExpr v2 |> addQuoOrSquareForList
+            in
+                ENode ([" ", " "], defaultId) n e1 e2
 
         _ ->
             EError ("Can Not Transfer Value: "++(toString v)++" To Expression.")
@@ -1671,3 +1747,21 @@ stringToECons ws s =
         [] -> ENil ws
 
         c :: cs -> ECons ws (EChar defaultWS c) (stringToECons ([], esElm) cs)
+
+
+addQuoOrSquareForList : Expr -> Expr
+addQuoOrSquareForList e =
+    case e of 
+        ECons (_, eid) e1 e2 ->
+            if eid == esElm then 
+                ECons ([" "], esQuo) e1 e2
+            else
+                ECons (["", " "], eoSquare) e1 e2
+        
+        ENil (_, eid) ->
+            if eid == esElm then
+                ENil ([" "], esQuo)
+            else 
+                ENil (["", " "], eoSquare)
+        
+        _ -> e
