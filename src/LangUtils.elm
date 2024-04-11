@@ -1473,6 +1473,20 @@ lamTplForeach =
         pTplForeach
         eVarTplForeach
 
+lamTplNode : Expr
+lamTplNode = 
+    ELam
+        defaultWS
+        pTplNode
+        eVarTplNode
+
+lamTreeTpl : Expr
+lamTreeTpl = 
+    ELam 
+        defaultWS
+        pTreeTpl
+        eVarTreeTpl
+
 
 -- string constant literal Expr (empty string, CRLF string)
 empStrExpr : Expr
@@ -1646,3 +1660,11 @@ listToVCons lst id =
         [] -> VNil id
 
         head :: tail -> VCons id head (listToVCons tail id)
+
+
+stringToECons : WS -> List Char -> Expr
+stringToECons ws s =
+    case s of
+        [] -> ENil ws
+
+        c :: cs -> ECons ws (EChar defaultWS c) (stringToECons ([], esElm) cs)

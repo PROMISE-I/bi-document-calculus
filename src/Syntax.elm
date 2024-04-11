@@ -13,6 +13,11 @@ defaultWS = ([], 0)
 defaultId : number
 defaultId = 0
 
+headWS : WS
+headWS = ([" ", " "], eoSquare)
+tailWS : WS
+tailWS = ([" "], eoElm)
+
 -- VCons: 
 vsId : number
 vsId = 1    -- String
@@ -78,6 +83,11 @@ tplIfName : String
 tplIfName = "$tplIf$"
 tplForeachName : String
 tplForeachName = "$tplForeach$"
+tplNodeName : String
+tplNodeName = "$tplNode$"
+
+treeTplName : String
+treeTplName = "$treeTpl$"
 
 pPreclude : Pattern
 pPreclude = PVar defaultWS precludeName
@@ -91,6 +101,11 @@ pTplIf : Pattern
 pTplIf = PVar defaultWS tplIfName
 pTplForeach : Pattern
 pTplForeach = PVar defaultWS tplForeachName
+pTplNode : Pattern
+pTplNode = PVar defaultWS tplNodeName
+
+pTreeTpl : Pattern
+pTreeTpl = PVar defaultWS treeTplName
 
 eVarPreclude : Expr
 eVarPreclude = EVar defaultWS precludeName
@@ -104,6 +119,11 @@ eVarTplIf : Expr
 eVarTplIf = EVar defaultWS tplIfName
 eVarTplForeach : Expr
 eVarTplForeach = EVar defaultWS tplForeachName
+eVarTplNode : Expr
+eVarTplNode = EVar defaultWS tplNodeName
+
+eVarTreeTpl : Expr
+eVarTreeTpl = EVar defaultWS treeTplName
 
 type Expr
     = EParens WS Expr
@@ -126,6 +146,7 @@ type Expr
     | EBTuple WS Expr Expr
     | ETTuple WS Expr Expr Expr
     | StrTpl Template
+    | TreeTpl WS Template
     | ENode WS String Expr Expr
     | EToStr WS Expr
     | EError Info
@@ -146,6 +167,7 @@ atctx = 2
 
 type TplPart
     = TplStr Expr
+    | TplNode WS String Expr Template
     | TplExpr WS Expr
     | TplSet WS Pattern Expr
     | TplIf WS Expr Template Template

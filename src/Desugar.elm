@@ -114,7 +114,21 @@ desugar expr =
                 EApp
                     defaultWS
                     (EApp defaultWS eVarJoin empStrExpr)
-                    (desugarTemplate t)
+                    (desugarTemplate headWS t)
+            )
+        
+        TreeTpl ws t ->
+            (
+                EApp
+                    defaultWS
+                    lamTreeTpl
+                    (
+                        ENode 
+                            ws
+                            "div"
+                            (ENil ([], eoElm))
+                            (desugarTemplate headWS t)
+                    )
             )
 
         ENode ws s e1 e2 -> 
@@ -156,24 +170,12 @@ desugarBranch branch =
                 BCom ws db1 db2
                         
 
-desugarTemplate : Template -> Expr
-desugarTemplate t = 
+desugarTemplate : WS -> Template -> Expr
+desugarTemplate ws t = 
     case t of
-        TCons ctx _ _ -> 
-            if ctx == stctx then
-                desugarStringTemplate t
-            else 
-                deusgarArticleTemplate t
-
-        TNil _ -> ENil (["", " "], eoAddFromEmp)
-
-
-desugarStringTemplate : Template -> Expr
-desugarStringTemplate t = 
-    case t of 
-        TCons ctx tPart restTemplate ->
+        TCons ctx tPart restTemplate -> 
             let
-                desugaredRestTemplate = desugarStringTemplate restTemplate
+                desugaredRestTemplate = desugarTemplate tailWS restTemplate
             in
             
             case tPart of
@@ -182,26 +184,38 @@ desugarStringTemplate t =
                     EApp 
                         defaultWS
                         lamTplStr
-                        (ECons ([" "], eoElm) e desugaredRestTemplate)
+                        (ECons ws e desugaredRestTemplate)
+                                
+                TplNode tpWS n e t1 -> 
+                    let
+                        desugaredAttr = desugar e
+                        desugaredT1 = desugarTemplate headWS t1
+                        desugaredTplNode = ENode defaultWS n desugaredAttr desugaredT1
+                    in
+                    -- make unique identification for resugar
+                        EApp
+                            tpWS
+                            lamTplNode
+                            (ECons ws desugaredTplNode desugaredRestTemplate)
 
-                TplExpr ws e -> 
+                TplExpr tpWS e -> 
                     -- make unique identification for resugar
                     EApp 
-                        ws
+                        tpWS
                         lamTplExpr       
-                        (ECons ([" "], eoElm) e desugaredRestTemplate)
+                        (ECons ws e desugaredRestTemplate) -- TODO: 忘记 deusgar e 了
 
-                TplSet ws p e -> 
+                TplSet tpWS p e -> 
                     -- make unique identification for resugar
                     EApp
-                        ws
+                        tpWS
                         lamTplSet
                         (ELet defaultWS p e desugaredRestTemplate)
 
-                TplIf ws e t1 t2 -> 
+                TplIf tpWS e t1 t2 -> 
                     let
-                        desugaredT1 = desugarStringTemplate t1
-                        desugaredT2 = desugarStringTemplate t2
+                        desugaredT1 = desugarTemplate headWS t1
+                        desugaredT2 = desugarTemplate headWS t2
                         ifSpliceT = 
                             TCons 
                                 ctx
@@ -233,13 +247,13 @@ desugarStringTemplate t =
                     in         
                     -- make unique identification for resugar
                         EApp
-                            ws
+                            tpWS
                             lamTplIf        
-                            (desugarStringTemplate ifSpliceT)
+                            (desugarTemplate ws ifSpliceT)
                     
-                TplForeach ws p e t1 -> 
+                TplForeach tpWS p e t1 -> 
                     let
-                        desugaredT1 = desugarStringTemplate t1
+                        desugaredT1 = desugarTemplate headWS t1
                         foreachSpliceT =                         
                             TCons 
                                 ctx
@@ -266,22 +280,15 @@ desugarStringTemplate t =
                     in
                     -- make unique identification for resugar
                         EApp 
-                            ws
+                            tpWS
                             lamTplForeach
-                            (desugarStringTemplate foreachSpliceT)
-                
-                -- TplNode _ _ _ _ -> EError "Template Part(node"
+                            (desugarTemplate ws foreachSpliceT)
                     
                 TplSplice e -> 
                     EApp
                         defaultWS
                         (EApp defaultWS eVarAppend e)
                         desugaredRestTemplate
-                    
-
-        TNil _ -> ENil ([], eoElm)
 
 
-deusgarArticleTemplate : Template -> Expr
-deusgarArticleTemplate t =
-    EError "Error: Desugar article template has not been implemented."
+        TNil _ -> ENil ws
