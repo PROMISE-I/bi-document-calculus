@@ -26,14 +26,13 @@ parse =
 
 node_ : Parser Expr
 node_ =
-    succeed (\s1 n s2 e1 s3 e2 ->
-            ENode ([s1, s2, s3], defaultId) n e1 e2)
+    succeed (\s1 n s2 e1 e2 ->
+            ENode ([s1, s2], defaultId) n e1 e2)
     |. symbol "Node"
     |= mSpaces
     |= varName
     |= mSpaces
     |= lazy (\_ -> aexpr)
-    |= mSpaces
     |= lazy (\_ -> aexpr)
 
 
@@ -436,8 +435,9 @@ strTpl =
 
 treeTpl : Parser Expr
 treeTpl = 
-    succeed (\tb s -> TreeTpl ([s], defaultId) tb)
+    succeed (\s1 tb s2 -> TreeTpl ([s1, s2], defaultId) tb)
         |. symbol "{*"
+        |= mSpaces
         |= tplBody atctx
         |. symbol "*}"
         |= mSpaces
@@ -469,8 +469,8 @@ tplPart : TplCtx -> Parser TplPart
 tplPart ctx = 
     let
         strTplPartParsers = 
-            [ tplExpr
-            , tplSet
+            [ tplExpr ctx
+            , tplSet ctx 
             , tplIf ctx
             , tplForeach ctx
             , tplStr ctx
@@ -540,9 +540,10 @@ getChompedStringUntilAny stops =
 
 tplNode : Parser TplPart
 tplNode = 
-    succeed (\n1 s attrs t n2 -> -- TODO: assert n1 == n2
+    -- <<n1><s1><attrs>> <s2><t> </<n2>> <s3>
+    succeed (\n1 s1 attrs s2 t n2 s3 -> -- TODO: assert n1 == n2
                 TplNode 
-                    ([s], defaultId) 
+                    ([s1, s2, s3], defaultId) 
                     n1
                     attrs
                     t
@@ -552,10 +553,12 @@ tplNode =
         |= mSpaces
         |= tplNodeAttrs
         |. symbol ">"
+        |= mSpaces
         |= tplBody atctx
         |. symbol "</"
         |= varName
         |. symbol ">"
+        |= mSpaces
 
 
 tplNodeAttrs : Parser Expr
@@ -575,9 +578,10 @@ tplNodeAttrsHelp revAttrs =
 
 tplNodeAttr : Parser Expr
 tplNodeAttr = 
-    succeed (\n s1 s2 v s3 -> 
+    -- <n><s1>=<s2><v>
+    succeed (\n s1 s2 v -> 
                 EBTuple 
-                    ([s1, s2, s3], defaultId) 
+                    ([s1, s2], defaultId) 
                     (n |> String.toList |> stringToExpr ([" "], esQuo))
                     v
             )
@@ -586,34 +590,56 @@ tplNodeAttr =
         |. symbol "="
         |= mSpaces
         |= string
-        |= mSpaces
 
 
-tplExpr : Parser TplPart
-tplExpr = 
-    succeed (\s1 e s2 -> TplExpr ([s1, s2], defaultId) e)
-        |. symbol "{{"
-        |= mSpaces
-        |= lazy (\_ -> expr)
-        |= mSpaces
-        |. symbol "}}"
+tplExpr : TplCtx -> Parser TplPart
+tplExpr ctx = 
+    if ctx == stctx then
+        -- {{<s><e>}}
+        succeed (\s e -> TplExpr ([s], defaultId) e)
+            |. symbol "{{"
+            |= mSpaces
+            |= lazy (\_ -> expr)
+            |. symbol "}}"
+    else
+        -- {{<s1><e>}}<s2>
+        succeed (\s1 e s2 -> TplExpr ([s1, s2], defaultId) e)
+            |. symbol "{{"
+            |= mSpaces
+            |= lazy (\_ -> expr)
+            |. symbol "}}"
+            |= mSpaces
 
 
-tplSet : Parser TplPart
-tplSet = 
-    succeed (\s1 s2 p s3 s4 e s5 -> 
-                TplSet ([s1, s2, s3, s4, s5], defaultId) p e)
-        |. backtrackable (symbol "{%")
-        |= backtrackable mSpaces
-        |. symbol "set"
-        |= mSpaces
-        |= lazy (\_ -> pattern)
-        |= mSpaces
-        |. symbol "="
-        |= mSpaces
-        |= lazy (\_ -> expr)
-        |= mSpaces
-        |. symbol "%}"
+tplSet : TplCtx -> Parser TplPart
+tplSet ctx = 
+    if ctx == stctx then
+        -- {%<s1>set<s2><p>=<s3><e>%}
+        succeed (\s1 s2 p s3 e -> 
+                    TplSet ([s1, s2, s3], defaultId) p e)
+            |. backtrackable (symbol "{%")
+            |= backtrackable mSpaces
+            |. symbol "set"
+            |= mSpaces
+            |= lazy (\_ -> pattern)
+            |. symbol "="
+            |= mSpaces
+            |= lazy (\_ -> expr)
+            |. symbol "%}"
+    else
+        -- {%<s1>set<s2><p>=<s3><e>%}<s4>
+            succeed (\s1 s2 p s3 e s4 -> 
+                    TplSet ([s1, s2, s3, s4], defaultId) p e)
+            |. backtrackable (symbol "{%")
+            |= backtrackable mSpaces
+            |. symbol "set"
+            |= mSpaces
+            |= lazy (\_ -> pattern)
+            |. symbol "="
+            |= mSpaces
+            |= lazy (\_ -> expr)
+            |. symbol "%}"
+            |= mSpaces
 
 
 tplIf : TplCtx -> Parser TplPart
@@ -629,46 +655,90 @@ tplIf ctx =
             )
         |= tplIfBody ctx
         |= tplElseBody ctx
-        |= tplIfEnd
+        |= tplIfEnd ctx
+
 
 tplIfBody : TplCtx -> Parser (WS, Expr, Template)
 tplIfBody ctx = 
-    succeed (\s1 s2 e s3 s4 t -> 
-                (([s1, s2, s3, s4], defaultId), e, t)
-            )
-        |. backtrackable (symbol "{%")
-        |= backtrackable mSpaces
-        |. symbol "if"
-        |= mSpaces 
-        |= lazy (\_ -> expr)
-        |= mSpaces
-        |. symbol "then"
-        |= mSpaces
-        |. symbol "%}"
-        |= lazy (\_ -> tplBody ctx)
+    if ctx == stctx then
+        -- {%<s1>if<s2><expr>then<s3>%}<t>
+        succeed (\s1 s2 e s3 t -> 
+                    (([s1, s2, s3], defaultId), e, t)
+                )
+            |. backtrackable (symbol "{%")
+            |= backtrackable mSpaces
+            |. symbol "if"
+            |= mSpaces 
+            |= lazy (\_ -> expr)
+            |. symbol "then"
+            |= mSpaces
+            |. symbol "%}"
+            |= lazy (\_ -> tplBody ctx)
+    else 
+        -- {%<s1>if<s2><expr>then<s3>%}<s4><t>
+        succeed (\s1 s2 e s3 s4 t -> 
+                    (([s1, s2, s3, s4], defaultId), e, t)
+                )
+            |. backtrackable (symbol "{%")
+            |= backtrackable mSpaces
+            |. symbol "if"
+            |= mSpaces 
+            |= lazy (\_ -> expr)
+            |. symbol "then"
+            |= mSpaces
+            |. symbol "%}"
+            |= mSpaces
+            |= lazy (\_ -> tplBody ctx)
 
 tplElseBody : TplCtx -> Parser (WS, Template)
 tplElseBody ctx = 
-    succeed (\s1 s2 t -> 
-                (([s1, s2], defaultId), t)
-            )
-        |. symbol "{%"
-        |= mSpaces
-        |. symbol "else"
-        |= mSpaces
-        |. symbol "%}"
-        |= lazy (\_ -> tplBody ctx)
+    if ctx == stctx then
+        -- {%<s1>else<s2>%}<t>
+        succeed (\s1 s2 t -> 
+                    (([s1, s2], defaultId), t)
+                )
+            |. symbol "{%"
+            |= mSpaces
+            |. symbol "else"
+            |= mSpaces
+            |. symbol "%}"
+            |= lazy (\_ -> tplBody ctx)
+    else
+        -- {%<s1>else<s2>%}<s3><t>
+        succeed (\s1 s2 s3 t -> 
+                    (([s1, s2, s3], defaultId), t)
+                )
+            |. symbol "{%"
+            |= mSpaces
+            |. symbol "else"
+            |= mSpaces
+            |. symbol "%}"
+            |= mSpaces
+            |= lazy (\_ -> tplBody ctx)
 
-tplIfEnd : Parser WS
-tplIfEnd = 
-    succeed (\s1 s2 -> 
-                ([s1, s2], defaultId)
-            )
-        |. symbol "{%"
-        |= mSpaces
-        |. symbol "endif"
-        |= mSpaces
-        |. symbol "%}"
+tplIfEnd : TplCtx -> Parser WS
+tplIfEnd ctx = 
+    if ctx == stctx then
+        -- {%<s1>endif<s2>%}
+        succeed (\s1 s2 -> 
+                    ([s1, s2], defaultId)
+                )
+            |. symbol "{%"
+            |= mSpaces
+            |. symbol "endif"
+            |= mSpaces
+            |. symbol "%}"
+    else 
+        -- {%<s1>endif<s2>%}<s3>
+        succeed (\s1 s2 s3 -> 
+                    ([s1, s2, s3], defaultId)
+                )
+            |. symbol "{%"
+            |= mSpaces
+            |. symbol "endif"
+            |= mSpaces
+            |. symbol "%}"
+            |= mSpaces
 
 
 tplForeach : TplCtx -> Parser TplPart
@@ -681,36 +751,65 @@ tplForeach ctx =
                     t
             )
         |= tplForeachBody ctx
-        |= tplForeachEnd
+        |= tplForeachEnd ctx
 
 tplForeachBody : TplCtx -> Parser (WS, (Pattern, Expr, Template))
-tplForeachBody ctx = 
-    succeed (\s1 s2 p s3 s4 e s5 t -> 
-                (([s1, s2, s3, s4, s5], defaultId), (p, e, t))
-            )
-        |. backtrackable (symbol "{%")
-        |= backtrackable mSpaces
-        |. symbol "for"
-        |= mSpaces
-        |= lazy (\_ -> pattern)
-        |= mSpaces
-        |. symbol "in"
-        |= mSpaces
-        |= lazy (\_ -> expr)
-        |= mSpaces
-        |. symbol "%}"
-        |= lazy (\_ -> tplBody ctx)
+tplForeachBody ctx =    
+    if ctx == stctx then
+        -- {%<s1>for<s2><p>in<s3><e>%}<t>
+        succeed (\s1 s2 p s3 e t -> 
+                    (([s1, s2, s3], defaultId), (p, e, t))
+                )
+            |. backtrackable (symbol "{%")
+            |= backtrackable mSpaces
+            |. symbol "for"
+            |= mSpaces
+            |= lazy (\_ -> pattern)
+            |. symbol "in"
+            |= mSpaces
+            |= lazy (\_ -> expr)
+            |. symbol "%}"
+            |= lazy (\_ -> tplBody ctx)
+    else
+        -- {%<s1>for<s2><p>in<s3><e>%}<s4><t>
+        succeed (\s1 s2 p s3 e s4 t -> 
+                    (([s1, s2, s3, s4], defaultId), (p, e, t))
+                )
+            |. backtrackable (symbol "{%")
+            |= backtrackable mSpaces
+            |. symbol "for"
+            |= mSpaces
+            |= lazy (\_ -> pattern)
+            |. symbol "in"
+            |= mSpaces
+            |= lazy (\_ -> expr)
+            |. symbol "%}"
+            |= mSpaces
+            |= lazy (\_ -> tplBody ctx)
 
-tplForeachEnd : Parser WS
-tplForeachEnd = 
-    succeed (\s1 s2 ->
-                ([s1, s2], defaultId)
-            )
-        |. symbol "{%"
-        |= mSpaces
-        |. symbol "endfor"
-        |= mSpaces
-        |. symbol "%}"
+tplForeachEnd : TplCtx -> Parser WS
+tplForeachEnd ctx =
+    if ctx == stctx then
+        -- {%<s1>endfor<s2>%}
+        succeed (\s1 s2 ->
+                    ([s1, s2], defaultId)
+                )
+            |. symbol "{%"
+            |= mSpaces
+            |. symbol "endfor"
+            |= mSpaces
+            |. symbol "%}"
+    else 
+        -- {%<s1>endfor<s2>%}<s3>
+        succeed (\s1 s2 s3 ->
+                    ([s1, s2, s3], defaultId)
+                )
+            |. symbol "{%"
+            |= mSpaces
+            |. symbol "endfor"
+            |= mSpaces
+            |. symbol "%}"
+            |= mSpaces
 
 
 operators : OperatorTable Expr
