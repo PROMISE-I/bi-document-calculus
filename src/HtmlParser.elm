@@ -32,9 +32,12 @@ nodeToValue node =
                         case childs of
                             [Text c] ->
                                 c |> toList |> stringToVCons
+                            
+                            [] -> 
+                                [] |> stringToVCons
 
                             _ ->
-                                VError "Parse Span Errors: 01."
+                                VError ("Parse Span Errors: 01." ++ (Debug.toString childs)) 
                     _ ->
                         let
                             vChilds =
