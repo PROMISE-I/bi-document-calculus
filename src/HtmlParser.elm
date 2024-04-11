@@ -28,13 +28,13 @@ nodeToValue node =
         case node of
             Element s attrList childs ->
                 case s of
-                    "span" ->
+                    "span" ->   -- TODO: find a better solution to separate stirng, rather than wrapping strin gy span
                         case childs of
                             [Text c] ->
-                                trim c |> toList |> stringToVCons
+                                c |> toList |> stringToVCons
 
                             _ ->
-                                VError "Parse Hole Error: 01."
+                                VError "Parse Span Errors: 01."
                     _ ->
                         let
                             vChilds =

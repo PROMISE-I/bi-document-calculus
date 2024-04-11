@@ -1145,7 +1145,10 @@ printChilds childs =
 
                         str2 = printChilds cs
                     in
-                        str1 ++ str2
+                        "<span contenteditable=\"true\">" ++
+                        str1 ++ 
+                        "</span>" ++
+                        str2
 
                 VNil 1 ->
                     let
