@@ -6,6 +6,7 @@ import Syntax exposing (..)
 import Parser.Extras exposing (..)
 import Parser.Expression exposing (..)
 import LangUtils exposing (unifyLineSeparator)
+import LangUtils exposing (changeWsForList)
 
 
 mSpaces : Parser String
@@ -140,7 +141,6 @@ varName =
             , "nil"
             , "true"
             , "false"
-            , "Node"
             , "toString"
             -- reserved for template
             , "set"
@@ -346,7 +346,8 @@ aexpr =
     , list
     , string
     , char
-    , lazy (\_ -> strTpl)
+    , strTpl
+    , treeTpl
     , node_
     , tostr
     ]
@@ -427,24 +428,26 @@ cons =
 -- Expression Parser for Template
 strTpl : Parser Expr
 strTpl = 
-    succeed (\tb -> StrTpl (replaceTplCtx tb stctx))
+    succeed (\tb -> StrTpl tb)
         |. symbol "{#"
         |= tplBody stctx
         |. symbol "#}"
+        -- TODO add mspaces in the end of strtpl
 
+treeTpl : Parser Expr
+treeTpl = 
+    succeed (\tb s -> TreeTpl ([s], defaultId) tb)
+        |. symbol "{*"
+        |= tplBody atctx
+        |. symbol "*}"
+        |= mSpaces
 
 tplBody : TplCtx -> Parser Template
 tplBody ctx = 
     Parser.map
-        tplPartsToTemplate
+        (tplPartsToTemplate ctx)
         (loop [] <| tplBodyHelp ctx)
 
-    -- For Debug
-    --
-    -- Parser.map 
-    --     (\tp -> TCons defaultCtx tp (TNil defaultCtx))
-    --     tplPart
-    
 
 tplBodyHelp : TplCtx -> List TplPart -> Parser (Step (List TplPart) (List TplPart))
 tplBodyHelp ctx revTplParts = 
@@ -455,25 +458,44 @@ tplBodyHelp ctx revTplParts =
             |> map (\_ -> Done (List.reverse revTplParts))
         ]
 
-tplPartsToTemplate : List TplPart -> Template
-tplPartsToTemplate tps =
+tplPartsToTemplate : TplCtx -> List TplPart -> Template
+tplPartsToTemplate ctx tps =
     case tps of
-        [] -> TNil defaultCtx
-        tp :: rest -> TCons defaultCtx tp (tplPartsToTemplate rest)
+        [] -> TNil ctx
+        tp :: rest -> TCons ctx tp (tplPartsToTemplate ctx rest)
 
 
 tplPart : TplCtx -> Parser TplPart
 tplPart ctx = 
-    oneOf 
-        [ tplExpr
-        , tplSet
-        , tplIf ctx
-        , tplForeach ctx
-        , tplStr
-        ]
+    let
+        strTplPartParsers = 
+            [ tplExpr
+            , tplSet
+            , tplIf ctx
+            , tplForeach ctx
+            , tplStr ctx
+            ]  
+        
+        treeTplPartParsers = 
+            List.append strTplPartParsers [tplNode]
 
-tplStrStops : List String
-tplStrStops = ["{{", "{%", "#}", "*}"]
+        tplPartParsers = 
+            if ctx == stctx then
+                strTplPartParsers
+            else 
+                treeTplPartParsers
+    in
+        oneOf tplPartParsers
+
+
+-- stop words for string template part in string template
+strTplStrStops : List String
+strTplStrStops = ["{{", "{%", "#}"]
+
+-- stop words for text template part in tree template
+treeTplTextStops : List String
+treeTplTextStops = ["<", "{{", "{%", "*}"]
+
 
 stopParser : List String -> Parser ()
 stopParser stops = 
@@ -494,28 +516,77 @@ tplStrChompCallBack stops acc result =
                     |. chompIf (\_ -> True)
                     |. runInnerParser (stopParser stops) (tplStrChompCallBack stops (acc + 1))
 
-
-tplStr : Parser TplPart
-tplStr = 
-    succeed (\s -> s 
-                |> unifyLineSeparator
-                |> String.toList
-                |> stringToExpr ([""], esQuo)
-                |> TplStr)
-        |=  getChompedStringUntilAny tplStrStops
+tplStr : TplCtx -> Parser TplPart
+tplStr ctx = 
+    let
+        stops = 
+            if ctx == stctx then 
+                strTplStrStops 
+            else 
+                treeTplTextStops
+    in
+        succeed (\s -> s 
+                    |> unifyLineSeparator
+                    |> String.toList
+                    |> stringToExpr ([""], esQuo)
+                    |> TplStr)
+            |=  getChompedStringUntilAny stops
 
 getChompedStringUntilAny : List String -> Parser String
 getChompedStringUntilAny stops = 
-    -- For debug
-    --
-    -- oneOf 
-    --     [ getChompedString (chompUntil "{{")
-    --     , getChompedString (chompUntil "{%")
-    --     , getChompedString (chompUntil "#}")
-    --     , getChompedString (chompUntil "*}")
-    --     ]
     runInnerParser (stopParser stops) (tplStrChompCallBack stops 0) 
         |> getChompedString
+
+
+tplNode : Parser TplPart
+tplNode = 
+    succeed (\n1 s attrs t n2 -> -- TODO: assert n1 == n2
+                TplNode 
+                    ([s], defaultId) 
+                    n1
+                    attrs
+                    t
+            ) 
+        |. backtrackable (symbol "<")
+        |= varName
+        |= mSpaces
+        |= tplNodeAttrs
+        |. symbol ">"
+        |= tplBody atctx
+        |. symbol "</"
+        |= varName
+        |. symbol ">"
+
+
+tplNodeAttrs : Parser Expr
+tplNodeAttrs = 
+    loop [] tplNodeAttrsHelp 
+        |> map exprListToECons 
+        |> map (changeWsForList ([" ", " "], eoSquare))
+
+tplNodeAttrsHelp : List (Expr, WS) -> Parser (Step (List (Expr, WS)) (List (Expr, WS)))
+tplNodeAttrsHelp revAttrs =
+    oneOf 
+        [ succeed (\attr -> Loop ((attr, ([" "], eoElm)) :: revAttrs))
+                |= tplNodeAttr
+            , succeed ()
+                |> map (\_ -> Done (List.reverse revAttrs))
+        ]
+
+tplNodeAttr : Parser Expr
+tplNodeAttr = 
+    succeed (\n s1 s2 v s3 -> 
+                EBTuple 
+                    ([s1, s2, s3], defaultId) 
+                    (n |> String.toList |> stringToExpr ([" "], esQuo))
+                    v
+            )
+        |= varName
+        |= mSpaces
+        |. symbol "="
+        |= mSpaces
+        |= string
+        |= mSpaces
 
 
 tplExpr : Parser TplPart
@@ -553,8 +624,8 @@ tplIf ctx =
                 TplIf 
                     (ss1 ++ ss2 ++ ss3, defaultId) 
                     e 
-                    (replaceTplCtx tIf ctx)
-                    (replaceTplCtx tElse ctx)
+                    tIf
+                    tElse
             )
         |= tplIfBody ctx
         |= tplElseBody ctx
@@ -607,7 +678,7 @@ tplForeach ctx =
                     (ss1 ++ ss2, defaultId) 
                     p 
                     e 
-                    (replaceTplCtx t ctx)
+                    t
             )
         |= tplForeachBody ctx
         |= tplForeachEnd
@@ -641,12 +712,6 @@ tplForeachEnd =
         |= mSpaces
         |. symbol "%}"
 
-replaceTplCtx : Template -> TplCtx -> Template
-replaceTplCtx t ctx =
-    case t of
-        TCons _ tPart restTemplate -> TCons ctx tPart (replaceTplCtx restTemplate ctx)
-
-        TNil _ -> TNil ctx
 
 operators : OperatorTable Expr
 operators =
