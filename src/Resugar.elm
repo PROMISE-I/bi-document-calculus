@@ -142,7 +142,7 @@ resugarTemplate ctx expr =
 
                                 Result.Err info -> Result.Err info
 
-                    _ -> Result.Err "Resugar Template Part Error: 03"
+                    _ -> Result.Err "Resugar Template Part Error: 01"
 
             else if e1 == lamTplNode then
                 case e2 of
@@ -167,7 +167,7 @@ resugarTemplate ctx expr =
                                 
                                 Result.Err info -> Result.Err info
                     
-                    _ -> Result.Err "Resugar Template Part Error: 04"
+                    _ -> Result.Err "Resugar Template Part Error: 02"
 
             else if e1 == lamTplExpr then
                 case e2 of
@@ -181,7 +181,7 @@ resugarTemplate ctx expr =
 
                                 Result.Err info -> Result.Err info
 
-                    _ -> Result.Err "Resugar Template Part Error: 04"
+                    _ -> Result.Err "Resugar Template Part Error: 03"
 
 
             else if e1 == lamTplSet then
@@ -250,16 +250,16 @@ resugarTemplate ctx expr =
                                                                 Result.Err info -> Result.Err info
 
                                                     else 
-                                                        Result.Err "Resugar Template Part Error: 06"
+                                                        Result.Err "Resugar Template Part Error: 05"
 
-                                            _ -> Result.Err "Resugar Template Part Error: 04"
+                                            _ -> Result.Err "Resugar Template Part Error: 06"
 
                                     Result.Err info -> Result.Err info
                                    
                         else 
-                            Result.Err "Resugar Template Part Error: 05"
+                            Result.Err "Resugar Template Part Error: 07"
 
-                    _ -> Result.Err "Resugar Template Part Error: 04"
+                    _ -> Result.Err "Resugar Template Part Error: 08"
 
 
             else if e1 == lamTplForeach then
@@ -304,21 +304,61 @@ resugarTemplate ctx expr =
                                                                 Result.Err info -> Result.Err info
 
                                                     else 
-                                                        Result.Err "Resugar Template Part Error: 06"
+                                                        Result.Err "Resugar Template Part Error: 09"
 
-                                            _ -> Result.Err "Resugar Template Part Error: 04"
+                                            _ -> Result.Err "Resugar Template Part Error: 10"
                                     
                                     Result.Err info -> Result.Err info
                         
                         else
-                            Result.Err "Resugar Template Part Error: 05"
+                            Result.Err "Resugar Template Part Error: 11"
                     
-                    _ -> Result.Err "Resugar Template Part Error: 04"
+                    _ -> Result.Err "Resugar Template Part Error: 12"
 
 
             else 
-                Result.Err "Resugar Template Part Error: 02" 
+                Result.Err "Resugar Template Part Error: 13" 
                 
         ENil _ -> Result.Ok (TNil ctx)
 
-        _ -> Result.Err "Resugar Template Part Error: 01"
+        -- newly add Node or String
+        ECons _ tPartExpr restExpr ->
+                case tPartExpr of 
+                    ENode _ n attrsExpr childsExpr -> 
+                        let
+                            childsTplRes = resugarTemplate ctx childsExpr
+                        in
+                            case childsTplRes of 
+                                Result.Ok childsTpl -> 
+                                    let
+                                        nodeTPart = TplNode ([" ", " ", " "], defaultId) n attrsExpr childsTpl
+                                        restTPartsRes = resugarTemplate ctx restExpr
+                                    in
+                                        case restTPartsRes of
+                                            Result.Ok restTemplate -> Result.Ok (TCons ctx nodeTPart restTemplate)
+                                            Result.Err info -> Result.Err info
+
+                                Result.Err info -> Result.Err info
+
+                    ECons (_, id) _ _ ->
+                        if id == esQuo || id == esElm then
+                            let
+                                strTPart = TplStr tPartExpr
+                                restTPartsRes = resugarTemplate ctx restExpr
+                            in
+                                case restTPartsRes of
+                                    Result.Ok restTemplate -> Result.Ok (TCons ctx strTPart restTemplate)
+                                    Result.Err info -> Result.Err info
+
+                        else 
+                            Result.Err "Resugar Template Part Error: 14"
+
+                    _ -> Result.Err "Resugar Template Part Error: 15" 
+
+
+        _ -> 
+            let
+                _ = Debug.log "addNode" <| Debug.toString expr
+            in
+            
+            Result.Err "Resugar Template Part Error: 16"
