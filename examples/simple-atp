@@ -13,3 +13,43 @@ let asmList = [asm1, asm2] in
         {% endfor %}
     </ul>
 *}
+
+-- output
+[ Node h1 [] []
+, Node p [] ["Today I am going shopping for: "]
+, "Hello, world: "
+, "John"
+, ", "
+, "28"
+, Node div [("class", "c1"), ("style", "color: red;")] ["Assemble Code: "]
+, Node ul [] [ Node li [] ["+", "1", "2"]
+             , Node li [] ["-", "2", "5"]]
+]
+
+<div>
+    <h1>
+        <span>Diary</span>
+    </h1>
+    <p>
+        <span>Today I am going shopping for: </span>
+    </p>
+    <span>Hello, world: </span>
+    <span>John</span>
+    <span>, </span>
+    <span>28</span>
+    <div class="c1" style="color: red;">
+        <span>Assemble Code: </span>
+    </div>
+    <ul>
+        <li>
+            <span>/</span>
+            <span>1</span>
+            <span>2</span>
+        </li>
+        <li>
+            <span>-</span>
+            <span>2</span>
+            <span>5</span>
+        </li>
+    </ul>
+</div>
