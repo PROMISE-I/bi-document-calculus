@@ -223,7 +223,7 @@ type alias MatchCaseRes =
 
 
 type DiffOp a
-    = DiffInsert a 
-    | DiffDelete 
-    | DiffUpdate a
-    | DiffKeep
+    = DiffInsert a  -- `a` is value to be inserted
+    | DiffDelete a  -- `a` is value to be deleted
+    | DiffUpdate a  -- `a` is value after update
+    | DiffKeep a    -- `a` is value to be kept
