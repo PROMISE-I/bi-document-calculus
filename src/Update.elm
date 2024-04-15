@@ -1160,7 +1160,7 @@ listAppendUpdateHelper v1 v2 diffOps =
                         in
                             (v :: v1New, v2New)
 
-            DiffDelete :: restDiffOps ->
+            (DiffDelete _):: restDiffOps ->
                 case v1 of 
                     [] -> 
                         case v2 of
@@ -1186,7 +1186,7 @@ listAppendUpdateHelper v1 v2 diffOps =
                         in
                             (v :: v1New, v2New)
 
-            DiffKeep :: restDiffOps->
+            (DiffKeep _) :: restDiffOps->
                 case v1 of
                     [] ->
                         case v2 of

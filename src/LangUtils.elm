@@ -1650,9 +1650,9 @@ generateEditOperations default l1 l2 =
                                                         Just (_, ops) -> (j, (DiffInsert valInList2) :: ops) :: cell  -- add ops && cell in reverse 
                                                         Nothing -> errorRes
                                             else if j == 0 then
-                                                -- matrix[i][0].second = DiffDelete :: matrix[i-1][0].second, here we only preverse the former row, thus row is matrix[i-1]
+                                                -- matrix[i][0].second = (DiffDelete l1[i-1]) :: matrix[i-1][0].second, here we only preverse the former row, thus row is matrix[i-1]
                                                 case List.head row of  
-                                                    Just (_, ops) -> (i, DiffDelete :: ops) :: cell
+                                                    Just (_, ops) -> (i, (DiffDelete valInList1) :: ops) :: cell
                                                     Nothing -> errorRes
                                             else
                                                 let
@@ -1694,9 +1694,9 @@ generateEditOperations default l1 l2 =
                                                     if minCost == substitution && valInList1 /= valInList2 then
                                                         (minCost, (DiffUpdate valInList2) :: topLeftOps) :: cell
                                                     else if minCost == substitution && valInList1 == valInList2 then
-                                                        (minCost, DiffKeep :: topLeftOps) :: cell
+                                                        (minCost, (DiffKeep valInList1) :: topLeftOps) :: cell
                                                     else if minCost == deletion then
-                                                        (minCost, DiffDelete :: topOps) :: cell
+                                                        (minCost, (DiffDelete valInList1) :: topOps) :: cell
                                                     else if minCost == insertion then
                                                         (minCost, (DiffInsert valInList2) :: leftOps) :: cell
                                                     else 
