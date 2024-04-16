@@ -40,11 +40,15 @@ updateCode model =
         "Parse Code Error."
     _ -> 
         let desugaredPCode = desugarWithPreclude pCode
-
             expr = processAfterParse desugaredPCode []
-            upRes = uneval [] expr pOutput
-            expr_ = processBeforePrint upRes.expr []
 
+            exprNode = eval [] expr
+            oldv = getValueFromExprNode exprNode
+            newv = pOutput
+            diffs = calcDiff oldv newv
+            upRes = uneval [] expr newv diffs
+
+            expr_ = processBeforePrint upRes.expr []
             resugaredCode = resugarWithoutPreclude expr_
 
             newCode = printAST resugaredCode
@@ -54,12 +58,17 @@ updateCode model =
             -- _ = Debug.log "upRes.expr" <| Debug.toString upRes.expr
             -- _ = Debug.log "expr_" <| Debug.toString expr_
             -- _ = Debug.log "resugaredCode" <| Debug.toString resugaredCode
+            _ = Debug.log "diffs" <| Debug.toString diffs
+
         in 
             newCode
 
 
-uneval : VEnv -> Expr -> Value -> UnEvalRes
-uneval venv expr newv =
+uneval : VEnv -> Expr -> Value -> List (DiffOp Value) -> UnEvalRes
+uneval venv expr newv diffs =
+    -- let
+    --     expr = getExprFromExprNode exprNode
+    -- in
     case expr of
         EVar _ s ->
             case newv of
@@ -89,7 +98,7 @@ uneval venv expr newv =
             let
                 res =
                     uneval venv 
-                        (EApp defaultWS (ELam defaultWS p e2) e1) newv 
+                        (EApp defaultWS (ELam defaultWS p e2) e1) newv diffs
             in
             case res.expr of
                 EError info ->
@@ -111,7 +120,7 @@ uneval venv expr newv =
             let 
                 res =
                     uneval venv 
-                        (EApp ws (ELam defaultWS p e2) (EFix defaultWS (ELam defaultWS p e1))) newv 
+                        (EApp ws (ELam defaultWS p e2) (EFix defaultWS (ELam defaultWS p e1))) newv diffs
             in
             case res.expr of
                 EError info ->
@@ -141,18 +150,29 @@ uneval venv expr newv =
             )
             e2 ->
             let
-                (v1New, v2New) = listAppendUpdate venv e1 e2 newv
+                en1 = eval venv e1
+                v1 = getValueFromExprNode en1
+                en2 = eval venv e2
+                v2 = getValueFromExprNode en2
 
-                e1NewRes = uneval venv e1 v1New
-                e2NewRes = uneval venv e2 v2New
+                (v1Diffs, v2Diffs) = splitDiffs (vConsToList v1) (vConsToList v2) diffs
+                newv1 = applyDiffs v1 v1Diffs
+                newv2 = applyDiffs v2 v2Diffs
+
+                e1NewRes = uneval venv e1 newv1 v1Diffs
+                e2NewRes = uneval venv e2 newv2 v2Diffs
                 venvNew = mergeVEnv e1NewRes.venv e2NewRes.venv venv
 
-                _ = Debug.log "e1" <| Debug.toString e1
-                _ = Debug.log "e2" <| Debug.toString e2
-                _ = Debug.log "v1New" <| Debug.toString v1New
-                _ = Debug.log "v2New" <| Debug.toString v2New
-                _ = Debug.log "e1New" <| Debug.toString e1NewRes.expr
-                _ = Debug.log "e2New" <| Debug.toString e2NewRes.expr
+                -- _ = Debug.log "e1" <| Debug.toString e1
+                -- _ = Debug.log "e2" <| Debug.toString e2
+                -- _ = Debug.log "v1" <| Debug.toString v1
+                -- _ = Debug.log "v2" <| Debug.toString v2
+                -- _ = Debug.log "newv1" <| Debug.toString newv1
+                -- _ = Debug.log "newv2" <| Debug.toString newv2
+                -- _ = Debug.log "v1Diffs" <| Debug.toString v1Diffs
+                -- _ = Debug.log "v2Diffs" <| Debug.toString v2Diffs
+                -- _ = Debug.log "e1New" <| Debug.toString e1NewRes.expr
+                -- _ = Debug.log "e2New" <| Debug.toString e2NewRes.expr
 
 
             in 
@@ -171,8 +191,7 @@ uneval venv expr newv =
                     case p of
                         PVar _ s  ->
                             let
-                                res1 =
-                                    uneval ((s, VFix e2)::venvf) ef newv 
+                                res1 = uneval ((s, VFix e2)::venvf) ef newv diffs
                             in
                             case res1.expr of
                                 EError info ->
@@ -190,9 +209,10 @@ uneval venv expr newv =
 
                                         newv1 =
                                             VClosure p res1.expr (drop 1 res1_venv)
+
+                                        v1Diffs = calcDiff v1 newv1
                                         
-                                        res2 =
-                                            uneval venv e1 newv1 
+                                        res2 = uneval venv e1 newv1 v1Diffs
                                     in
                                     case res2.expr of
                                         EError info ->
@@ -204,11 +224,9 @@ uneval venv expr newv =
                                             case (head res1_venv) of
                                                 Just (_, VClosure np ne nvenv) -> 
                                                     let
-                                                        newv2 =
-                                                            VClosure np ne nvenv
+                                                        newv2 = VClosure np ne nvenv
                                                         
-                                                        res3 =
-                                                            uneval venv (EFix defaultWS e2) newv2 
+                                                        res3 = uneval venv (EFix defaultWS e2) newv2 []
                                                     in
                                                         { venv = venv
                                                         , expr = EApp ws res2.expr res3.expr
@@ -252,7 +270,7 @@ uneval venv expr newv =
                         
                         venvm = match p v2
 
-                        res1 = uneval (venvm++venvf) ef newv
+                        res1 = uneval (venvm++venvf) ef newv diffs
                     in
                     case res1.expr of
                         EError info ->
@@ -262,11 +280,11 @@ uneval venv expr newv =
                         
                         _ ->
                             let 
-                                newv1 =
-                                    VClosure p res1.expr (drop (length venvm) res1.venv)
-                                
+                                newv1 = VClosure p res1.expr (drop (length venvm) res1.venv)
+                                v1Diffs = calcDiff v1 newv1
+
                                 res2 =
-                                    uneval venv e1 newv1
+                                    uneval venv e1 newv1 v1Diffs
                             in
                             case res2.expr of
                                 EError info ->
@@ -276,18 +294,17 @@ uneval venv expr newv =
                                 
                                 _ ->
                                     let
-                                        newv2 =   
-                                            patternSubst res1.venv p
+                                        newv2 = patternSubst res1.venv p
+                                        v2Diffs = calcDiff v2 newv2
                                         
-                                        res3 =
-                                            uneval venv e2 newv2 
+                                        res3 = uneval venv e2 newv2 v2Diffs
 
-                                        -- _ = Debug.log "uneval-patternsubst-e1" <| Debug.toString e1
-                                        -- _ = Debug.log "uneval-patternsubst-e2" <| Debug.toString e2
-                                        -- _ = Debug.log "uneval-patternsubst-ef" <| Debug.toString ef
-                                        -- _ = Debug.log "uneval-patternsubst-newv" <| Debug.toString newv
-                                        -- _ = Debug.log "uneval-patternsubst-res1" <| Debug.toString res1
-                                        -- _ = Debug.log "uneval-patternsubst-venvm" <| Debug.toString venvm
+                                        _ = Debug.log "uneval-patternsubst-e1" <| Debug.toString e1
+                                        _ = Debug.log "uneval-patternsubst-e2" <| Debug.toString e2
+                                        _ = Debug.log "uneval-patternsubst-ef" <| Debug.toString ef
+                                        _ = Debug.log "uneval-patternsubst-newv" <| Debug.toString newv
+                                        _ = Debug.log "uneval-patternsubst-res1" <| Debug.toString res1
+                                        _ = Debug.log "uneval-patternsubst-venvm" <| Debug.toString venvm
 
 
                                     in
@@ -388,48 +405,100 @@ uneval venv expr newv =
                     }
         
 
-        ECons (pads, eId) e1 e2 -> -- TODO: change update rules to Sketch-n-Sketch
-            case newv of
-                VCons vId v1 v2 ->
-                    let
-                        res1 =
-                            uneval venv e1 v1
-
-                        res2 = 
-                            uneval venv e2 v2
-                        
-                        newvenv =
-                            mergeVEnv res1.venv res2.venv venv
-                        
-                    in
-                        if eId == eoCons then
-                            { venv = newvenv
-                            , expr = ECons (pads, eId) res1.expr res2.expr
-                            }
-                        else 
-                            { venv = newvenv
-                            , expr = ECons (pads, vIdToEId vId eId) res1.expr res2.expr
-                            }
-
-                VNil vId ->
-                    { venv = venv
-                    , expr = ENil (pads, vIdToEId vId eId)
-                    }
-
-                _ ->
+        ECons ((_, eid) as ws) e1 e2 -> -- TODO: change update rules to Sketch-n-Sketch
+            case diffs of
+                [] -> 
                     { venv = []
                     , expr = EError ("List Update Error." ++ (Debug.toString newv)) 
                     }
 
-        EBTuple ws e1 e2 ->
-            case newv of
-                VBTuple v1 v2 ->
+                (DiffDelete _) :: restDiffs ->
                     let
-                        res1 =
-                            uneval venv e1 v1
+                        res2 = uneval venv e2 newv restDiffs
+                    in
+                        { venv = res2.venv
+                        , expr = changeWsForList ws res2.expr
+                        }
 
-                        res2 = 
-                            uneval venv e2 v2
+                (DiffInsert newv1) :: restDiffs ->
+                    case newv of
+                        VCons _ _ newv2 -> 
+                            let
+                                newe1 = valueToExpr newv1
+                                res2 = uneval venv expr newv2 restDiffs
+
+                                tWS = 
+                                    if eid == eoSquare then
+                                        ([" "], eoElm)
+                                    else if eid == esQuo then
+                                        ([], esElm)
+                                    else 
+                                        ws 
+                                t = changeWsForList tWS res2.expr
+                            in
+                                { venv = res2.venv
+                                , expr = ECons ws newe1 t}
+
+                        _ ->
+                            { venv = []
+                            , expr = EError ("Cons Update Error: 02" ++ " - " ++ Debug.toString newv ++ " - " ++ Debug.toString expr)}
+
+                (DiffKeep _) :: restDiffs ->
+                    case newv of
+                        VCons _ _ newv2 ->
+                            let
+                                res2 = uneval venv e2 newv2 restDiffs
+                                t = res2.expr
+                            in
+                                { venv = res2.venv
+                                , expr = ECons ws e1 t
+                                }
+
+                        _ -> 
+                            { venv = []
+                            , expr = EError ("Cons Update Error: 01" ++ " - " ++ Debug.toString newv ++ " - " ++ Debug.toString expr)}
+                    
+                (DiffUpdate newv1) :: restDiffs ->
+                    case newv of
+                        VCons _ _ newv2 ->
+                            let
+                                en1 = eval venv e1
+                                v1 = getValueFromExprNode en1
+                                v1Diffs = calcDiff v1 newv1
+
+                                res1 = uneval venv e1 newv1 v1Diffs
+                                res2 = uneval venv e2 newv2 restDiffs
+                                
+                                newvenv = mergeVEnv res1.venv res2.venv venv
+                                h = res1.expr
+                                t = res2.expr
+                            in
+                                { venv = newvenv
+                                , expr = ECons ws h t
+                                }
+
+                        _ -> 
+                            { venv = []
+                            , expr = EError "Cons Update Error: 03"}
+
+
+        EBTuple ws e1 e2 ->
+            let
+                en1 = eval venv e1 
+                v1 = getValueFromExprNode en1
+                
+                en2 = eval venv e2
+                v2 = getValueFromExprNode en2
+            in
+            
+            case newv of
+                VBTuple newv1 newv2 ->
+                    let
+                        v1Diffs = calcDiff v1 newv1
+                        v2Diffs = calcDiff v2 newv2
+
+                        res1 = uneval venv e1 newv1 v1Diffs
+                        res2 = uneval venv e2 newv2 v2Diffs
                         
                         newvenv =
                             mergeVEnv res1.venv res2.venv venv
@@ -445,17 +514,27 @@ uneval venv expr newv =
                     }
         
         ETTuple ws e1 e2 e3 ->
+            let
+                en1 = eval venv e1 
+                v1 = getValueFromExprNode en1
+                
+                en2 = eval venv e2
+                v2 = getValueFromExprNode en2
+
+                en3 = eval venv e3
+                v3 = getValueFromExprNode en3
+            in
+            
             case newv of
-                VTTuple v1 v2 v3 ->
+                VTTuple newv1 newv2 newv3 ->
                     let
-                        res1 =
-                            uneval venv e1 v1
+                        v1Diffs = calcDiff v1 newv1
+                        v2Diffs = calcDiff v2 newv2
+                        v3Diffs = calcDiff v3 newv3
 
-                        res2 = 
-                            uneval venv e2 v2
-
-                        res3 = 
-                            uneval venv e3 v3
+                        res1 = uneval venv e1 newv1 v1Diffs
+                        res2 = uneval venv e2 newv2 v2Diffs
+                        res3 = uneval venv e3 newv3 v3Diffs
                         
                         newvenv =
                             mergeVEnv4 res1.venv res2.venv res3.venv venv
@@ -471,14 +550,23 @@ uneval venv expr newv =
                     }
 
         ENode ws s e1 e2 ->
-            case newv of
-                VNode _ v1 v2 ->
-                    let
-                        res1 =
-                            uneval venv e1 v1
+            let
+                en1 = eval venv e1 
+                v1 = getValueFromExprNode en1
+                
+                en2 = eval venv e2
+                v2 = getValueFromExprNode en2
+            in
+            
 
-                        res2 = 
-                            uneval venv e2 v2
+            case newv of
+                VNode _ newv1 newv2 ->
+                    let
+                        v1Diffs = calcDiff v1 newv1
+                        v2Diffs = calcDiff v2 newv2
+
+                        res1 = uneval venv e1 v1 v1Diffs
+                        res2 = uneval venv e2 v2 v2Diffs
 
                         newvenv =
                             mergeVEnv res1.venv res2.venv venv
@@ -502,8 +590,7 @@ uneval venv expr newv =
                 
                 VCons vId _ _ ->
                     let
-                        ne =
-                            valueToExpr newv
+                        ne = valueToExpr newv
                         
                         newe =
                             case ne of
@@ -548,7 +635,7 @@ uneval venv expr newv =
 
         EFix ws e ->
             let
-                res = uneval venv (EApp defaultWS e (EFix defaultWS e)) newv
+                res = uneval venv (EApp defaultWS e (EFix defaultWS e)) newv diffs
 
                 e_ =
                     case res.expr of
@@ -576,7 +663,7 @@ uneval venv expr newv =
                                             matchCase v branches
 
                                         resi =
-                                            uneval (matchRes.venvm++venv) matchRes.ei newv
+                                            uneval (matchRes.venvm++venv) matchRes.ei newv diffs
                                     in
                                     { ei     = resi.expr
                                     , venv   = resi.venv
@@ -624,8 +711,7 @@ uneval venv expr newv =
                             case newv of
                                 VTrue ->
                                     let 
-                                        res =
-                                            uneval venv e VFalse
+                                        res = uneval venv e VFalse []
                                     in
                                         { venv = res.venv
                                         , expr = EUPrim ws Not res.expr
@@ -650,7 +736,7 @@ uneval venv expr newv =
 
                                 VFalse ->
                                     let 
-                                        res = uneval venv e VTrue
+                                        res = uneval venv e VTrue []
                                     in
                                         { venv = res.venv
                                         , expr = EUPrim ws Not res.expr
@@ -677,7 +763,7 @@ uneval venv expr newv =
                                         }
                                     else
                                         let
-                                            res = uneval venv e (VInt (-n_))
+                                            res = uneval venv e (VInt (-n_)) []
                                         in
                                             { venv = res.venv
                                             , expr = EUPrim ws Neg res.expr
@@ -697,7 +783,7 @@ uneval venv expr newv =
                                         }
                                     else
                                         let 
-                                            res = uneval venv e (VFloat (toFloat (-n_)))
+                                            res = uneval venv e (VFloat (toFloat (-n_))) []
                                         in
                                             { venv = res.venv
                                             , expr = EUPrim ws Neg res.expr
@@ -710,7 +796,7 @@ uneval venv expr newv =
                                         }
                                     else
                                         let 
-                                            res = uneval venv e (VFloat (-n_))
+                                            res = uneval venv e (VFloat (-n_)) []
                                         in
                                             { venv = res.venv
                                             , expr = EUPrim ws Neg res.expr
@@ -739,27 +825,31 @@ uneval venv expr newv =
                     comp ws e1 e2 venv newv
             in
             case op of
-                And -> logic_ And
-                Or  -> logic_ Or
+                And -> logic_ And diffs
+                Or  -> logic_ Or diffs
                 
-                Add -> arith_ Add
-                Sub -> arith_ Sub
-                Mul -> arith_ Mul
-                Div -> arith_ Div
-                DDiv -> arith_ DDiv
-                Cat -> arith_ Cat
+                Add -> arith_ Add diffs
+                Sub -> arith_ Sub diffs
+                Mul -> arith_ Mul diffs
+                Div -> arith_ Div diffs
+                DDiv -> arith_ DDiv diffs
+                Cat -> arith_ Cat diffs
 
-                _ -> comp_ op
+                _ -> comp_ op diffs
 
         EParens ws e ->
             let 
-                res = uneval venv e newv
+                res = uneval venv e newv diffs
             in
                 { venv = res.venv
                 , expr = EParens ws res.expr
                 }
 
         EToStr ws e ->
+            let
+                en = eval venv e
+                v = getValueFromExprNode en
+            in
             case newv of
                 VCons 1 _ _ ->
                     let
@@ -768,7 +858,8 @@ uneval venv expr newv =
                     case res1 of
                         Result.Ok nv ->
                             let
-                                res2 = uneval venv e nv
+                                vDiffs = calcDiff v nv
+                                res2 = uneval venv e nv vDiffs
                             in
                                 { venv = res2.venv
                                 , expr = EToStr ws res2.expr
@@ -803,8 +894,8 @@ vconsToString v =
             "VCons To String Error."
 
 
-logic : WS -> Expr -> Expr -> VEnv -> Value -> Bop -> UnEvalRes
-logic ws e1 e2 venv newv op =
+logic : WS -> Expr -> Expr -> VEnv -> Value -> Bop -> List (DiffOp Value) -> UnEvalRes
+logic ws e1 e2 venv newv op diffs =
     let
         en1 = eval venv e1
         v1 = getValueFromExprNode en1
@@ -869,11 +960,15 @@ logic ws e1 e2 venv newv op =
             }
 
         _ ->
-            checkChange venv ws op e1 e2 v1 v2 newv1 newv2
+            let
+                v1Diffs = calcDiff v1 newv1
+                v2Diffs = calcDiff v2 newv2
+            in
+                checkChange venv ws op e1 e2 v1 v2 newv1 newv2 v1Diffs v2Diffs
 
 
-arith : WS -> Expr -> Expr -> VEnv -> Value -> Bop -> UnEvalRes
-arith ws e1 e2 venv newv op =
+arith : WS -> Expr -> Expr -> VEnv -> Value -> Bop -> List (DiffOp Value) -> UnEvalRes
+arith ws e1 e2 venv newv op diffs =
     let
         en1 = eval venv e1 
         v1 = getValueFromExprNode en1
@@ -939,7 +1034,11 @@ arith ws e1 e2 venv newv op =
                     }
                 
                 _ ->
-                    checkChange venv ws op e1 e2 v1 v2 newv1 newv2
+                    let
+                        v1Diffs = calcDiff v1 newv1
+                        v2Diffs = calcDiff v2 newv2
+                    in
+                        checkChange venv ws op e1 e2 v1 v2 newv1 newv2 v1Diffs v2Diffs
 
         VFloat n ->
             let
@@ -977,22 +1076,33 @@ arith ws e1 e2 venv newv op =
                     }
                 
                 _ -> 
-                    checkChange venv ws op e1 e2 v1 v2 newv1 newv2
+                    let
+                        v1Diffs = calcDiff v1 newv1
+                        v2Diffs = calcDiff v2 newv2
+                    in                
+                        checkChange venv ws op e1 e2 v1 v2 newv1 newv2 v1Diffs v2Diffs
 
         VCons id _ _ ->
             case op of
                 Cat ->
                     let
-                        (newv1, newv2) = listAppendUpdate venv e1 e2 newv
+                        (v1Diffs, v2Diffs) = splitDiffs (vConsToList v1) (vConsToList v2) diffs
+                        newv1 = applyDiffs v1 v1Diffs
+                        newv2 = applyDiffs v2 v2Diffs
                     in
-                        checkChange venv ws op e1 e2 v1 v2 newv1 newv2
+                        checkChange venv ws op e1 e2 v1 v2 newv1 newv2 v1Diffs v2Diffs
 
                 Add -> 
                     if id == vsId then 
                         let 
-                            (newv1, newv2) = listAppendUpdate venv e1 e2 newv
+                            (v1Diffs, v2Diffs) = splitDiffs (vConsToList v1) (vConsToList v2) diffs
+                            
+                            _ = Debug.log "(v1, v2) in add" <| Debug.toString (v1, v2)
+                            _ = Debug.log "(v1Diffs, v2Diffs) in add" <| Debug.toString (v1Diffs, v2Diffs)
+                            newv1 = applyDiffs v1 v1Diffs
+                            newv2 = applyDiffs v2 v2Diffs
                         in 
-                            checkChange venv ws op e1 e2 v1 v2 newv1 newv2
+                            checkChange venv ws op e1 e2 v1 v2 newv1 newv2 v1Diffs v2Diffs
                     else 
                         { venv = []
                         , expr = EError "Arith Expression Modified Value Type Error: 01."
@@ -1005,7 +1115,12 @@ arith ws e1 e2 venv newv op =
 
         VNil _ ->
             if op == Cat || op == Add then
-                checkChange venv ws op e1 e2 v1 v2 newv newv
+                let 
+                    (v1Diffs, v2Diffs) = splitDiffs (vConsToList v1) (vConsToList v2) diffs
+                    newv1 = applyDiffs v1 v1Diffs
+                    newv2 = applyDiffs v2 v2Diffs
+                in 
+                checkChange venv ws op e1 e2 v1 v2 newv1 newv2 v1Diffs v2Diffs
             else
                 { venv = []
                 , expr = EError "Arith Expression Modified Value Type Error: 02."
@@ -1017,8 +1132,8 @@ arith ws e1 e2 venv newv op =
             }
 
 
-comp : WS -> Expr -> Expr -> VEnv -> Value -> Bop -> UnEvalRes
-comp ws e1 e2 venv newv op =
+comp : WS -> Expr -> Expr -> VEnv -> Value -> Bop -> List (DiffOp Value) -> UnEvalRes
+comp ws e1 e2 venv newv op diffs =
     let
         en1 = eval venv e1
         v1 = getValueFromExprNode en1
@@ -1042,7 +1157,11 @@ comp ws e1 e2 venv newv op =
                             , expr = EError "Missing Information, Cannot Infer: 01."
                             }
                         _ ->
-                            checkChange venv ws op e1 e2 v1 v2 newv1 newv2
+                            let
+                                v1Diffs = calcDiff v1 newv1
+                                v2Diffs = calcDiff v2 newv2
+                            in      
+                                checkChange venv ws op e1 e2 v1 v2 newv1 newv2 v1Diffs v2Diffs
 
                 _ ->
                     let
@@ -1097,31 +1216,32 @@ comp ws e1 e2 venv newv op =
 
 
 checkChange : VEnv -> WS -> Bop -> 
-            Expr -> Expr -> Value -> Value -> Value -> Value -> UnEvalRes
-checkChange venv ws op e1 e2 v1 v2 newv1 newv2 =
+            Expr -> Expr -> Value -> Value -> Value -> Value -> 
+            List (DiffOp Value) -> List (DiffOp Value) -> UnEvalRes
+checkChange venv ws op e1 e2 v1 v2 newv1 newv2 v1Diffs v2Diffs =
     if newv1 == v1 && newv2 == v2 then
         { venv = venv
         , expr = EBPrim ws op e1 e2
         }
     else if newv1 == v1 then
         let
-            res2 = uneval venv e2 newv2
+            res2 = uneval venv e2 newv2 v2Diffs
         in
             { venv = res2.venv
             , expr = EBPrim ws op e1 res2.expr
             }
     else if newv2 == v2 then
         let
-            res1 = uneval venv e1 newv1
+            res1 = uneval venv e1 newv1 v1Diffs
         in
             { venv = res1.venv
             , expr = EBPrim ws op res1.expr e2
             }
     else
         let
-            res1 = uneval venv e1 newv1
+            res1 = uneval venv e1 newv1 v1Diffs
 
-            res2 = uneval venv e2 newv2
+            res2 = uneval venv e2 newv2 v2Diffs
 
             newvenv =
                 mergeVEnv res1.venv res2.venv venv
@@ -1130,90 +1250,3 @@ checkChange venv ws op e1 e2 v1 v2 newv1 newv2 =
             { venv = newvenv
             , expr = EBPrim ws op res1.expr res2.expr
             }
-
-    
-listAppendUpdate : VEnv -> Expr -> Expr -> Value -> (Value, Value)
-listAppendUpdate venv e1 e2 newv =
-    let
-        en1 = eval venv e1
-        v1 = getValueFromExprNode en1
-        en2 = eval venv e2
-        v2 = getValueFromExprNode en2
-        vList1 = vConsToList v1
-        vList2 = vConsToList v2
-        vListOld = vList1 ++ vList2 
-        vListNew = vConsToList newv
-        
-        diffOps = generateEditOperations (VError "") vListOld vListNew
-        (vList1New, vList2New) = listAppendUpdateHelper vList1 vList2 diffOps
-
-    in
-        (listToVCons vList1New (getVConsId v1), listToVCons vList2New (getVConsId v2))
-
-listAppendUpdateHelper : List Value -> List Value -> List (DiffOp Value) -> (List Value, List Value)
-listAppendUpdateHelper v1 v2 diffOps =
-    let 
-        errorRes = ([VError "List append update error: 01"], [VError "List append update error: 01"]) 
-    in
-        case diffOps of 
-            [] -> 
-                if v1 == [] && v2 == [] then
-                    ([], [])
-                else 
-                    errorRes
-
-            (DiffInsert v) :: restDiffOps ->
-                case v1 of
-                    [] ->
-                        let
-                            (_, v2New) = listAppendUpdateHelper v1 v2 restDiffOps
-                        in
-                            ([], v :: v2New)
-                    _ ->         
-                        let
-                            (v1New, v2New) = listAppendUpdateHelper v1 v2 restDiffOps
-                        in
-                            (v :: v1New, v2New)
-
-            (DiffDelete _):: restDiffOps ->
-                case v1 of 
-                    [] -> 
-                        case v2 of
-                            [] -> errorRes
-                            v2h :: v2t -> listAppendUpdateHelper [] v2t restDiffOps
-                    
-                    v1h :: v1t -> listAppendUpdateHelper v1t v2 restDiffOps
-
-            (DiffUpdate v)  :: restDiffOps->
-                case v1 of
-                    [] -> 
-                        let
-                            (_, v2New) = 
-                                case v2 of 
-                                    [] -> errorRes
-                                    v2h :: v2t -> listAppendUpdateHelper [] v2t restDiffOps
-                        in
-                            ([], v :: v2New)
-                    
-                    v1h :: v1t -> 
-                        let 
-                            (v1New, v2New) = listAppendUpdateHelper v1t v2 restDiffOps
-                        in
-                            (v :: v1New, v2New)
-
-            (DiffKeep _) :: restDiffOps->
-                case v1 of
-                    [] ->
-                        case v2 of
-                            [] -> ([], [])
-                            v2h :: v2t ->
-                                let
-                                    (_, v2New) = listAppendUpdateHelper [] v2t restDiffOps
-                                in
-                                    ([], v2h :: v2New)
-                    v1h :: v1t ->
-                        let 
-                            (v1New, v2New) = listAppendUpdateHelper v1t v2 restDiffOps
-                        in
-                            (v1h :: v1New, v2New)
-
