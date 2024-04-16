@@ -1067,7 +1067,7 @@ changeWsForList ws expr =
             ECons ws e1 (changeWsForList ws e2)
 
         _ ->
-            EError "Impossible!"
+            EError ("Impossible!" ++ (Debug.toString expr))
 
 
 lengthUntil : String -> VEnv -> Int
@@ -1767,7 +1767,109 @@ addQuoOrSquareForList e =
         _ -> e
 
 
+getExprFromExprNode : ExprNode -> Expr
+getExprFromExprNode en =
+    case en of
+        (_, expr, _) -> expr
+
 getValueFromExprNode : ExprNode -> Value
 getValueFromExprNode en =
     case en of
         (_, _, attrs) -> attrs.value
+
+
+isListValue : Value -> Bool
+isListValue v =
+    case v of
+        VCons _ _ _ -> True
+        VNil _ -> True
+        _ -> False
+
+calcDiff : Value -> Value -> List (DiffOp Value)
+calcDiff oldv newv =
+    if isListValue oldv && isListValue newv then
+        let
+            oldvList = vConsToList oldv
+            newvList = vConsToList newv
+        in
+            generateEditOperations (VError "") oldvList newvList
+            
+    else 
+        []
+
+
+splitDiffs : List Value -> List Value -> List (DiffOp Value) -> (List (DiffOp Value), List (DiffOp Value))
+splitDiffs v1 v2 diffs =
+    let 
+        (v1Diffs, v2Diffs) = splitDiffsHelp (List.isEmpty v1) v1 v2 diffs
+    in  
+        (List.reverse v1Diffs, v2Diffs)
+
+splitDiffsHelp : Bool -> List Value -> List Value -> List (DiffOp Value) -> (List (DiffOp Value), List (DiffOp Value))
+splitDiffsHelp insertRight v1 v2 diffs =
+    case diffs of
+        [] -> 
+            if List.isEmpty v1 && List.isEmpty v2 then
+                ([], [])
+            else 
+                let
+                    _ = Debug.log "In splitDiffHelp" "Non Empty list but empty diffs"
+                in
+                    ([], [])
+
+        (DiffInsert _ as diff) :: restDiffs ->
+            let
+                (v1Diffs, v2Diffs) = splitDiffsHelp insertRight v1 v2 restDiffs
+            in
+                if insertRight && List.isEmpty v1 then
+                    ([], diff :: v2Diffs)
+                else 
+                    (diff :: v1Diffs, v2Diffs)
+
+
+        diff :: restDiffs ->
+            case v1 of
+                [] -> ([], diffs)
+
+                _ :: v1t ->
+                    let
+                        (v1Diffs, v2Diffs) = splitDiffsHelp insertRight v1t v2 restDiffs
+                    in
+                        (diff :: v1Diffs, v2Diffs)
+
+
+getUpdatedValueInDiff : DiffOp Value -> Value
+getUpdatedValueInDiff diff =
+    case diff of
+        DiffDelete v -> v
+        DiffInsert v -> v
+        DiffKeep v -> v
+        DiffUpdate v -> v
+
+applyDiffs : Value -> List (DiffOp Value) -> Value
+applyDiffs oldv diffs =
+    case oldv of
+        VCons vid _ t ->
+            case diffs of
+                [] -> VError "Apply Diffs Error: 02 - diffs' length is smaller than the value!"
+                
+                (DiffDelete _) :: restDiffs -> applyDiffs t restDiffs
+
+                (DiffInsert newv) :: restDiffs -> VCons vid newv (applyDiffs oldv restDiffs)
+
+                diff :: restDiffs -> 
+                    let
+                        newv = getUpdatedValueInDiff diff
+                        newt = applyDiffs t restDiffs
+                    in
+                        VCons vid newv newt
+        
+        VNil vid ->
+            case diffs of
+                [] -> VNil vid
+
+                (DiffInsert v) :: restDiffs -> VCons vid v (applyDiffs (VNil vid) restDiffs)
+
+                _ -> VError ("Apply Diffs Error: 03 - Update/Delete/Keep diff operation on empty list!" ++ " - " ++ Debug.toString diffs)
+        
+        _ -> VError "Apply Diffs Error: 01 - apply diffs to non list value!"
