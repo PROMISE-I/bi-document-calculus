@@ -1765,3 +1765,9 @@ addQuoOrSquareForList e =
                 ENil (["", " "], eoSquare)
         
         _ -> e
+
+
+getValueFromExprNode : ExprNode -> Value
+getValueFromExprNode en =
+    case en of
+        (_, _, attrs) -> attrs.value

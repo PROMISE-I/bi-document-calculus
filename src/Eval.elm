@@ -5,297 +5,392 @@ import Syntax exposing (..)
 import LangUtils exposing (..)
 import Round
 
-eval :  VEnv -> Expr -> Value
+eval :  VEnv -> Expr -> ExprNode
 eval venv expr =
     case expr of
 
         EVar _ s ->
-            case findVarByName s venv of
-                Just v ->
-                    case v of
-                        VFix e -> eval venv (EFix defaultWS e) 
-                        val    -> val
+            let
+                v = 
+                    case findVarByName s venv of
+                        Just val ->
+                            case val of
+                                VFix e -> 
+                                    let
+                                        en = eval venv (EFix defaultWS e) 
+                                    in
+                                        getValueFromExprNode en
 
-                Nothing -> VError "Variable Error: 01"
+                                _    -> val
+
+                        Nothing -> VError "Variable Error: 01"
+            in
+                (ECVar, expr, { value = v })
+
 
         ELam _ p e ->
-            VClosure p e venv
+            let
+                v = VClosure p e venv
+            in
+                (ECLam, expr, { value = v })
+            
 
         ELet _ p e1 e2 ->
-            eval venv (EApp defaultWS (ELam defaultWS p e2) e1)
+            eval venv (EApp defaultWS (ELam defaultWS p e2) e1)          
+            
 
         ELetrec _ p e1 e2 ->
             eval venv 
                 (EApp defaultWS (ELam defaultWS p e2) (EFix defaultWS (ELam defaultWS p e1)))
 
+
         EApp _ e1 e2 ->
-            case eval venv e1 of
+            let
+                en1 = eval venv e1
+                v1 = getValueFromExprNode en1
+            in
+                case v1 of
 
-                VClosure p ef venvf ->
-                    case e2 of
-                        EFix _ e -> 
-                            case p of
-                                PVar _ s -> eval ((s, VFix e)::venvf) ef 
-                                _      -> VError "Recursion Error: 01"
-                        _ ->  
-                            let 
-                                v2 =
-                                    eval venv e2 
+                    VClosure p ef venvf ->
+                        case e2 of
+                            EFix _ e -> 
+                                case p of
+                                    PVar _ s -> 
+                                        let
+                                            v2 = VFix e
+                                            en2 = (ECFix, e2, { value = v2 })
+
+                                            en3 = eval ((s, v2)::venvf) ef
+                                            v3 = getValueFromExprNode en3
+                                        in
+                                            (ECApp en1 en2 en3, expr, { value = v3 })                                        
+
+                                    _      -> (ECError, expr, { value = VError "Recursion Error: 01" })
+                            _ ->  
+                                let 
+                                    en2 = eval venv e2
+                                    v2 = getValueFromExprNode en2
                                 
-                                venvm =
-                                    match p v2
-                            in
-                            case venvm of
-                                [(_, VError info)] -> VError info
-                                _             -> eval (venvm++venvf) ef
+                                    venvm = match p v2
+                                in
+                                    case venvm of
+                                        [(_, VError info)] -> (ECError, expr, { value = VError info})
+                                        _                  -> 
+                                            let
+                                                en3 = eval (venvm++venvf) ef
+                                                v3 = getValueFromExprNode en3
+                                            in
+                                                (ECApp en1 en2 en3, expr, { value = v3 })
+                                            
 
-                _ -> VError "Function Error: 01"
+                    _ -> (ECError, expr, { value = VError "Function Error: 01" }) 
+
 
         EInt _ n ->
-            VInt n
+            let 
+                v = VInt n
+            in
+                (ECInt, expr, { value = v })
+
 
         EFloat _ n ->
-            VFloat n
+            let 
+                v = VFloat n
+            in
+                (ECFloat, expr, { value = v })
         
-        ETrue _ -> VTrue
-        EFalse _ -> VFalse
 
-        EChar _ c -> VChar c
+        ETrue _ -> 
+            let
+                v = VTrue
+            in
+                (ECTrue, expr, { value = v })
+
+
+        EFalse _ -> 
+            let
+                v = VFalse
+            in
+                (ECFalse, expr, { value = v })
+
+
+        EChar _ c -> 
+            let
+                v = VChar c
+            in
+                (ECChar, expr, { value = v })
+
 
         ECons (_, id) e1 e2 ->
             let 
-                v1 =
-                    eval venv e1
+                en1 = eval venv e1
+                v1 = getValueFromExprNode en1
 
-                v2 =
-                    eval venv e2
-            in 
-                if id == eoCons then
-                    -- handle (::) operation on string
-                    case v2 of
-                        VCons vsId _ _ ->
-                            case v1 of
-                                VChar _ -> VCons vsId v1 v2
+                en2 = eval venv e2
+                v2 = getValueFromExprNode en2
 
-                                _ -> VError "Cons (::) Error: cannot cons other type except char with string"
-                        
-                        VNil vsId ->
-                            case v1 of
-                                VChar _ -> VCons vsId v1 v2
+                v = 
+                    if id == eoCons then
+                        -- handle (::) operation on string
+                        case v2 of
+                            VCons vsId _ _ ->
+                                case v1 of
+                                    VChar _ -> VCons vsId v1 v2
 
-                                _ -> VError "Cons (::) Error: cannot cons other type except char with string"
-                        
-                        _ -> VCons voId v1 v2
-                else 
-                    if id == esQuo || id == esElm then 
-                        VCons vsId v1 v2
+                                    _ -> VError "Cons (::) Error: cannot cons other type except char with string" 
+                            
+                            VNil vsId ->
+                                case v1 of
+                                    VChar _ -> VCons vsId v1 v2
+
+                                    _ -> VError "Cons (::) Error: cannot cons other type except char with string"
+                            
+                            _ -> 
+                                VCons voId v1 v2
                     else 
-                        VCons voId v1 v2
-
+                        if id == esQuo || id == esElm then 
+                            VCons vsId v1 v2
+                        else 
+                            VCons voId v1 v2
+            in 
+                (ECCons en1 en2, expr, { value = v })
+                
 
         EBTuple _ e1 e2 ->
             let 
-                v1 =
-                    eval venv e1
+                en1 = eval venv e1
+                v1 = getValueFromExprNode en1
                 
-                v2 =
-                    eval venv e2
+                en2 = eval venv e2
+                v2 = getValueFromExprNode en2
+                
+                v = VBTuple v1 v2
             in
-                VBTuple v1 v2
+                (ECBTuple en1 en2, expr, { value = v })
+
 
         ETTuple _ e1 e2 e3 ->
             let 
-                v1 =
-                    eval venv e1
-                
-                v2 =
-                    eval venv e2
-                
-                v3 =
-                    eval venv e3 
+                en1 = eval venv e1
+                v1 = getValueFromExprNode en1
+
+                en2 = eval venv e2
+                v2 = getValueFromExprNode en2
+
+                en3 = eval venv e3 
+                v3 = getValueFromExprNode en3
+
+                v = VTTuple v1 v2 v3
             in
-                VTTuple v1 v2 v3
+                (ECTTuple en1 en2 en3, expr, { value = v })
         
+
         ENil (_, id) ->
-            if id == esQuo || id == esElm then
-                VNil 1
-            else VNil 0
+            let
+                v = 
+                    if id == esQuo || id == esElm then
+                        VNil 1
+                    else 
+                        VNil 0
+            in
+                (ECNil, expr, { value = v })
+
 
         EUPrim _ op e ->
-            case op of
-                Neg ->
-                    let 
-                        v =
-                            eval venv e 
-                    in
-                        case v of
+            let 
+                en1 = eval venv e
+                v1 = getValueFromExprNode en1
+
+                v = 
+                    case op of
+                    Neg ->
+                        case v1 of
                             VInt n    ->
                                 VInt (0-n)
                             VFloat n  ->
                                 VFloat (0-n)
                             _         ->
                                 VError "Arithmetic Error: 01"
-                Not ->
-                    let 
-                        v =
-                            eval venv e
-                    in
-                    case v of
-                        VTrue     ->
-                            VFalse
-                        VFalse    ->
-                            VTrue
-                        _         ->
-                            VError "Logical Operation Error: 01"
+                    Not ->
+                        case v1 of
+                            VTrue     ->
+                                VFalse
+                            VFalse    ->
+                                VTrue
+                            _         ->
+                                VError "Logical Operation Error: 01"
+            in
+                (ECUPrim en1, expr, { value = v })
 
         EBPrim _ op e1 e2 ->
             let 
-                v1 = 
-                    eval venv e1
+                en1 = eval venv e1
+                v1 = getValueFromExprNode en1
 
-                v2 = 
-                    eval venv e2
+                en2 = eval venv e2
+                v2 = getValueFromExprNode en2
+                
+                v = 
+                    case v1 of
+                        VInt n1 ->
+                            case v2 of
+                                VInt n2 -> 
+                                    case op of
+                                        Add -> VInt (n1 + n2)
+                                        Sub -> VInt (n1 - n2)
+                                        Mul -> VInt (n1 * n2)
+                                        Div -> VInt (n1 // n2)
+                                        DDiv -> VFloat (Round.roundNumCom 2 
+                                                        <| ((toFloat n1) / (toFloat n2)))
+                                        Eq -> boolOp (n1 == n2)
+                                        Lt -> boolOp (n1 < n2)
+                                        Gt -> boolOp (n1 > n2)
+                                        Le -> boolOp (n1 <= n2)
+                                        Ge -> boolOp (n1 >= n2)
+                                        _  -> 
+                                            VError "Logical Operation Error: 02"
+                                
+                                VFloat n2 ->
+                                    floatOp op (toFloat n1) n2
+
+                                _         ->
+                                    VError "Operand Error: 01"
+
+                        VFloat n1 ->
+                            case v2 of
+                                VInt n2   -> 
+                                    floatOp op n1 (toFloat n2)
+
+                                VFloat n2 -> 
+                                    floatOp op n1 n2
+
+                                _         -> 
+                                    VError "Operand Error: 02"
+
+                        VTrue ->
+                            case v2 of
+                                VTrue ->
+                                    case op of
+                                    And -> VTrue
+                                    Or  -> VTrue
+                                    _   -> VError "Arithmetic Error: 02"
+                                
+                                VFalse ->
+                                    case op of
+                                        And -> VFalse
+                                        Or  -> VTrue
+                                        _   -> VError "Arithmetic Error: 03"
+                                
+                                _ ->
+                                    VError "Operand Error: 03"
+
+                        VFalse ->
+                            case v2 of
+                                VTrue ->
+                                    case op of
+                                        And -> VFalse
+                                        Or  -> VTrue
+                                        _   -> VError "Arithmetic Error: 04"
+                                
+                                VFalse ->
+                                    case op of
+                                        And -> VFalse
+                                        Or  -> VFalse
+                                        _   -> VError "Arithmetic Error: 05"
+                                
+                                _ ->
+                                    VError "Operand Error: 04"
+
+                        VCons id1 _ _ ->
+                            case v2 of
+                                VCons id2 _ _ -> listOp id1 id2 op v1 v2 
+                                
+                                VNil id2 -> listOp id1 id2 op v1 v2
+
+                                _ ->
+                                    VError "Operand Error: 08"
+
+                        VNil id1 ->
+                            case v2 of
+                                VCons id2 _ _ -> listOp id1 id2 op v1 v2
+                                
+                                VNil id2 -> listOp id1 id2 op v1 v2
+
+                                _ ->
+                                    VError "Operand Error: 09"
+
+                        _ ->
+                            VError "Operand Error: 05"
             in
-                case v1 of
-                    VInt n1 ->
-                        case v2 of
-                            VInt n2 -> 
-                                case op of
-                                    Add -> VInt (n1 + n2)
-                                    Sub -> VInt (n1 - n2)
-                                    Mul -> VInt (n1 * n2)
-                                    Div -> VInt (n1 // n2)
-                                    DDiv -> VFloat (Round.roundNumCom 2 
-                                                    <| ((toFloat n1) / (toFloat n2)))
-                                    Eq -> boolOp (n1 == n2)
-                                    Lt -> boolOp (n1 < n2)
-                                    Gt -> boolOp (n1 > n2)
-                                    Le -> boolOp (n1 <= n2)
-                                    Ge -> boolOp (n1 >= n2)
-                                    _  -> 
-                                        VError "Logical Operation Error: 02"
-                            
-                            VFloat n2 ->
-                                floatOp op (toFloat n1) n2
+                (ECBPrim en1 en2, expr, { value = v })
 
-                            _         ->
-                                VError "Operand Error: 01"
 
-                    VFloat n1 ->
-                        case v2 of
-                            VInt n2   -> 
-                                floatOp op n1 (toFloat n2)
-
-                            VFloat n2 -> 
-                                floatOp op n1 n2
-
-                            _         -> 
-                                VError "Operand Error: 02"
-
-                    VTrue ->
-                        case v2 of
-                            VTrue ->
-                                case op of
-                                And -> VTrue
-                                Or  -> VTrue
-                                _   -> VError "Arithmetic Error: 02"
-                            
-                            VFalse ->
-                                case op of
-                                    And -> VFalse
-                                    Or  -> VTrue
-                                    _   -> VError "Arithmetic Error: 03"
-                            
-                            _ ->
-                                VError "Operand Error: 03"
-
-                    VFalse ->
-                        case v2 of
-                            VTrue ->
-                                case op of
-                                    And -> VFalse
-                                    Or  -> VTrue
-                                    _   -> VError "Arithmetic Error: 04"
-                            
-                            VFalse ->
-                                case op of
-                                    And -> VFalse
-                                    Or  -> VFalse
-                                    _   -> VError "Arithmetic Error: 05"
-                            
-                            _ ->
-                                VError "Operand Error: 04"
-
-                    VCons id1 _ _ ->
-                        case v2 of
-                            VCons id2 _ _ -> listOp id1 id2 op v1 v2 
-                            
-                            VNil id2 -> listOp id1 id2 op v1 v2
-
-                            _ ->
-                                VError "Operand Error: 08"
-
-                    VNil id1 ->
-                        case v2 of
-                            VCons id2 _ _ -> listOp id1 id2 op v1 v2
-                            
-                            VNil id2 -> listOp id1 id2 op v1 v2
-
-                            _ ->
-                                VError "Operand Error: 09"
-
-                    _ ->
-                        VError "Operand Error: 05"
-
-        ECase _ (EVar _ s) branch ->
+        ECase _ (EVar ws s) branch ->
             case findVarByName s venv of
-                Just v ->
-                    case v of
-                        val       ->  
-                            let 
-                                res = 
-                                    matchCase val branch 
-                            in 
-                            case res.venvm of
-                                [(_, VError info)] -> VError info
-                                _ -> eval (res.venvm++venv) res.ei 
+                Just v1 ->
+                    let 
+                        en1 = (ECVar, EVar ws s, { value = v1 })
+                        res = matchCase v1 branch 
+                    in 
+                        case res.venvm of
+                            [(_, VError info)] -> (ECError, expr, { value = VError info })
+                            _ -> 
+                                let
+                                    en2 = eval (res.venvm++venv) res.ei 
+                                    v2 = getValueFromExprNode en2
+                                in
+                                    (ECCase en1 en2, expr, { value = v2 })    
                 
                 Nothing ->
-                    VError "Variable Error: 02"
+                    (ECError, expr, { value = VError "Variable Error: 02" })
+
 
         EFix _ e ->
             eval venv (EApp defaultWS e (EFix defaultWS e)) 
 
+
         EParens _ e ->
             eval venv e 
 
+
         ENode _ s e1 e2 ->
             let
-                v1 = 
-                    eval venv e1
+                en1 = eval venv e1
+                v1 = getValueFromExprNode en1
             
-                v2 = 
-                    eval venv e2
+                en2 = eval venv e2
+                v2 = getValueFromExprNode en2
+                
+                v = VNode s v1 v2
             in
-                VNode s v1 v2
+                (ECNode en1 en2, expr, { value = v })
             
 
         EToStr _ e ->
             let
-                v1 =
-                    eval venv e 
+                en1 = eval venv e 
+                v1 = getValueFromExprNode en1
 
-                sv =
-                    print v1
+                sv = print v1
+
+                v = String.toList sv |> stringToVCons
             in
-                String.toList sv |> stringToVCons
+                (ECToStr en1, expr, { value = v })
             
 
         EError info ->
-            VError info
+            let 
+                v = VError info
+            in
+                (ECError, expr, { value = v })
+
 
         _ ->
-            VError "Something Wrong!"
+            let
+                v = VError "Something Wrong!"
+            in
+                (ECError, expr, { value = v })
+            
 
 
 stringToVCons :  List Char -> Value

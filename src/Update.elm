@@ -163,7 +163,8 @@ uneval venv expr newv =
 
         EApp ws e1 (EFix _ e2) ->
             let 
-                v1 = eval venv e1
+                en1 = eval venv e1
+                v1 = getValueFromExprNode en1
             in
             case v1 of
                 VClosure p ef venvf ->
@@ -240,12 +241,14 @@ uneval venv expr newv =
 
         EApp ws e1 e2 ->
             let 
-                v1 = eval venv e1
+                en1 = eval venv e1
+                v1 = getValueFromExprNode en1
             in
             case v1 of
                 VClosure p ef venvf ->
                     let 
-                        v2 = eval venv e2 
+                        en2 = eval venv e2 
+                        v2 = getValueFromExprNode en2
                         
                         venvm = match p v2
 
@@ -611,7 +614,8 @@ uneval venv expr newv =
 
         EUPrim ws op e ->
             let 
-                v = eval venv e
+                en = eval venv e
+                v = getValueFromExprNode en
             in
             case op of
                 Not ->
@@ -802,11 +806,14 @@ vconsToString v =
 logic : WS -> Expr -> Expr -> VEnv -> Value -> Bop -> UnEvalRes
 logic ws e1 e2 venv newv op =
     let
-        v1 = eval venv e1
+        en1 = eval venv e1
+        v1 = getValueFromExprNode en1
         
-        v2 = eval venv e2
+        en2 = eval venv e2
+        v2 = getValueFromExprNode en2
 
-        v = eval venv (EBPrim ws op e1 e2)
+        en = eval venv (EBPrim ws op e1 e2)
+        v = getValueFromExprNode en
         
         (newv1, newv2) =
             case v of
@@ -868,9 +875,11 @@ logic ws e1 e2 venv newv op =
 arith : WS -> Expr -> Expr -> VEnv -> Value -> Bop -> UnEvalRes
 arith ws e1 e2 venv newv op =
     let
-        v1 = eval venv e1 
+        en1 = eval venv e1 
+        v1 = getValueFromExprNode en1
         
-        v2  = eval venv e2
+        en2  = eval venv e2
+        v2 = getValueFromExprNode en2
         -- _ = Debug.log "e1" <| Debug.toString e1
         -- _ = Debug.log "v1" <| Debug.toString v1
         -- _ = Debug.log "e2" <| Debug.toString e2
@@ -1011,9 +1020,11 @@ arith ws e1 e2 venv newv op =
 comp : WS -> Expr -> Expr -> VEnv -> Value -> Bop -> UnEvalRes
 comp ws e1 e2 venv newv op =
     let
-        v1= eval venv e1
+        en1 = eval venv e1
+        v1 = getValueFromExprNode en1
         
-        v2 = eval venv e2
+        en2 = eval venv e2
+        v2 = getValueFromExprNode en2
     in
     case newv of
         VTrue ->
@@ -1035,7 +1046,8 @@ comp ws e1 e2 venv newv op =
 
                 _ ->
                     let
-                        res = eval venv (EBPrim ws op e1 e2)
+                        resEN = eval venv (EBPrim ws op e1 e2)
+                        res = getValueFromExprNode resEN
                         
                         newe =
                             case res of
@@ -1057,7 +1069,8 @@ comp ws e1 e2 venv newv op =
 
         VFalse ->
             let
-                res = eval venv (EBPrim ws op e1 e2)
+                resEN = eval venv (EBPrim ws op e1 e2)
+                res = getValueFromExprNode resEN
                 
                 newe =
                     case res of
@@ -1122,8 +1135,10 @@ checkChange venv ws op e1 e2 v1 v2 newv1 newv2 =
 listAppendUpdate : VEnv -> Expr -> Expr -> Value -> (Value, Value)
 listAppendUpdate venv e1 e2 newv =
     let
-        v1 = eval venv e1
-        v2 = eval venv e2
+        en1 = eval venv e1
+        v1 = getValueFromExprNode en1
+        en2 = eval venv e2
+        v2 = getValueFromExprNode en2
         vList1 = vConsToList v1
         vList2 = vConsToList v2
         vListOld = vList1 ++ vList2 

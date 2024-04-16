@@ -20,7 +20,10 @@ evalCodeToModel code =
                 let 
                     desugaredExpr = desugarWithPreclude e
                     e_ = processAfterParse desugaredExpr []
-                    res = eval [] e_
+                    resN = eval [] e_
+                    res = 
+                        case resN of
+                            (_, _, attrs) -> attrs.value
 
                     (output, mode) =
                         case res of

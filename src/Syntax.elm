@@ -120,6 +120,33 @@ eVarTplNode = EVar defaultWS tplNodeName
 eVarTreeTpl : Expr
 eVarTreeTpl = EVar defaultWS treeTplName
 
+
+type alias Attr = { value : Value }
+type alias ExprNode = (ExprChilds, Expr, Attr)
+
+type ExprChilds
+    = ECParens ExprNode
+    | ECVar
+    | ECLam
+    | ECApp ExprNode ExprNode ExprNode
+    | ECInt 
+    | ECFloat 
+    | ECTrue 
+    | ECFalse  
+    | ECChar  
+    | ECCons ExprNode ExprNode 
+    | ECNil  
+    | ECBPrim ExprNode ExprNode
+    | ECUPrim ExprNode
+    | ECCase ExprNode ExprNode
+    | ECFix 
+    | ECBTuple ExprNode ExprNode
+    | ECTTuple ExprNode ExprNode ExprNode
+    | ECNode ExprNode ExprNode
+    | ECToStr ExprNode
+    | ECError
+
+
 type Expr
     = EParens WS Expr
     | EVar WS String
