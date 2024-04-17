@@ -6,7 +6,7 @@ import Syntax exposing (..)
 import Parser.Extras exposing (..)
 import Parser.Expression exposing (..)
 import LangUtils exposing (unifyLineSeparator)
-import LangUtils exposing (changeWsForList)
+import LangUtils exposing (changeWs)
 
 
 mSpaces : Parser String
@@ -565,7 +565,7 @@ tplNodeAttrs : Parser Expr
 tplNodeAttrs = 
     loop [] tplNodeAttrsHelp 
         |> map exprListToECons 
-        |> map (changeWsForList ([" ", " "], eoSquare))
+        |> map (changeWs ([" ", " "], eoSquare))
 
 tplNodeAttrsHelp : List (Expr, WS) -> Parser (Step (List (Expr, WS)) (List (Expr, WS)))
 tplNodeAttrsHelp revAttrs =
