@@ -58,7 +58,7 @@ updateCode model =
             -- _ = Debug.log "upRes.expr" <| Debug.toString upRes.expr
             -- _ = Debug.log "expr_" <| Debug.toString expr_
             -- _ = Debug.log "resugaredCode" <| Debug.toString resugaredCode
-            _ = Debug.log "diffs" <| Debug.toString diffs
+            -- _ = Debug.log "diffs" <| Debug.toString diffs
 
         in 
             newCode
@@ -258,76 +258,124 @@ uneval venv expr newv diffs =
                     }
 
         EApp ws e1 e2 ->
-            let 
-                en1 = eval venv e1
-                v1 = getValueFromExprNode en1
-            in
-            case v1 of
-                VClosure p ef venvf ->
-                    let 
-                        en2 = eval venv e2 
-                        v2 = getValueFromExprNode en2
-                        
-                        venvm = match p v2
+            if e1 == lamTplStr || e1 == lamTplNode || e1 == lamTplExpr then
+                case e2 of 
+                    ECons ws1 tPartE restTplExpr ->
+                        case diffs of
+                            [] -> 
+                                { venv = []
+                                , expr = EError "Lambda Template Part Update Error: diffs is empty!"}
 
-                        res1 = uneval (venvm++venvf) ef newv diffs
-                    in
-                    case res1.expr of
-                        EError info ->
-                            { venv = []
-                            , expr = EError info
-                            }
-                        
-                        _ ->
-                            let 
-                                newv1 = VClosure p res1.expr (drop (length venvm) res1.venv)
-                                v1Diffs = calcDiff v1 newv1
+                            (DiffDelete _) :: restDiffs -> uneval venv restTplExpr newv restDiffs
 
-                                res2 =
-                                    uneval venv e1 newv1 v1Diffs
-                            in
-                            case res2.expr of
-                                EError info ->
-                                    { venv = []
-                                    , expr = EError info
+                            (DiffInsert vTPart) :: restDiffs ->
+                                let
+                                    newTPartE = valueToExpr vTPart |> addQuoOrSquareForList
+                                    
+                                    res2 = uneval venv expr (vConsTail newv) restDiffs
+                                in
+                                    { venv = res2.venv
+                                    , expr = makeTplIdentity e1 ws newTPartE res2.expr
+                                    }  
+
+                            (DiffKeep _) :: restDiffs ->
+                                let
+                                    res2 = uneval venv restTplExpr (vConsTail newv) restDiffs
+                                in
+                                    { venv = res2.venv 
+                                    , expr = EApp ws e1 (ECons ws1 tPartE res2.expr)
                                     }
-                                
-                                _ ->
-                                    let
-                                        newv2 = patternSubst res1.venv p
-                                        v2Diffs = calcDiff v2 newv2
-                                        
-                                        res3 = uneval venv e2 newv2 v2Diffs
+                            
+                            (DiffUpdate newvTPart) :: restDiffs ->
+                                let
+                                    enTPart = eval venv tPartE
+                                    vTPart = getValueFromExprNode enTPart
+                                    vTPartDiffs = calcDiff vTPart newvTPart
 
-                                        _ = Debug.log "uneval-patternsubst-e1" <| Debug.toString e1
-                                        _ = Debug.log "uneval-patternsubst-e2" <| Debug.toString e2
-                                        _ = Debug.log "uneval-patternsubst-ef" <| Debug.toString ef
-                                        _ = Debug.log "uneval-patternsubst-newv" <| Debug.toString newv
-                                        _ = Debug.log "uneval-patternsubst-res1" <| Debug.toString res1
-                                        _ = Debug.log "uneval-patternsubst-venvm" <| Debug.toString venvm
+                                    res1 = uneval venv tPartE newvTPart vTPartDiffs
+                                    res2 = uneval venv restTplExpr (vConsTail newv) restDiffs 
+
+                                    newvenv = mergeVEnv res1.venv res2.venv venv
+                                in
+                                    { venv = newvenv
+                                    , expr = EApp ws e1 (ECons ws1 res1.expr res2.expr)}  
+
+                    _ -> 
+                        { venv = []
+                        , expr = EError "Invalid template part (tplStr or tplNode or tplExpr) expression!"}      
+                    
+
+            else
+                let 
+                    en1 = eval venv e1
+                    v1 = getValueFromExprNode en1
+                in
+                case v1 of
+                    VClosure p ef venvf ->
+                        let 
+                            en2 = eval venv e2 
+                            v2 = getValueFromExprNode en2
+                            
+                            venvm = match p v2
+
+                            res1 = uneval (venvm++venvf) ef newv diffs
+                        in
+                        case res1.expr of
+                            EError info ->
+                                { venv = []
+                                , expr = EError info
+                                }
+                            
+                            _ ->
+                                let 
+                                    newv1 = VClosure p res1.expr (drop (length venvm) res1.venv)
+                                    v1Diffs = calcDiff v1 newv1
+
+                                    res2 =
+                                        uneval venv e1 newv1 v1Diffs
+                                in
+                                case res2.expr of
+                                    EError info ->
+                                        { venv = []
+                                        , expr = EError info
+                                        }
+                                    
+                                    _ ->
+                                        let
+                                            newv2 = patternSubst res1.venv p
+                                            v2Diffs = calcDiff v2 newv2
+                                            
+                                            res3 = uneval venv e2 newv2 v2Diffs
+
+                                            -- _ = Debug.log "uneval-patternsubst-e1" <| Debug.toString e1
+                                            -- _ = Debug.log "uneval-patternsubst-e2" <| Debug.toString e2
+                                            -- _ = Debug.log "uneval-patternsubst-ef" <| Debug.toString ef
+                                            -- _ = Debug.log "uneval-patternsubst-newv" <| Debug.toString newv
+                                            -- _ = Debug.log "uneval-patternsubst-res1" <| Debug.toString res1
+                                            -- _ = Debug.log "uneval-patternsubst-venvm" <| Debug.toString venvm
 
 
-                                    in
-                                    case res3.expr of
-                                        EError info ->
-                                            { venv = []
-                                            , expr = EError info
-                                            } 
-                                        
-                                        _ ->
-                                            let
-                                                newvenv =
-                                                    mergeVEnv res2.venv res3.venv venv
+                                        in
+                                        case res3.expr of
+                                            EError info ->
+                                                { venv = []
+                                                , expr = EError info
+                                                } 
+                                            
+                                            _ ->
+                                                let
+                                                    newvenv =
+                                                        mergeVEnv res2.venv res3.venv venv
 
-                                            in
-                                                { venv = newvenv
-                                                , expr = EApp ws res2.expr res3.expr
-                                                }
-                                        
-                _ ->
-                    { venv = []
-                    , expr = EError "Application Update Error."
-                    }
+                                                in
+                                                    { venv = newvenv
+                                                    , expr = EApp ws res2.expr res3.expr
+                                                    }
+                                            
+                    _ ->
+                        { venv = []
+                        , expr = EError "Application Update Error."
+                        }
 
         EInt ws _ ->
             case newv of
@@ -417,7 +465,7 @@ uneval venv expr newv diffs =
                         res2 = uneval venv e2 newv restDiffs
                     in
                         { venv = res2.venv
-                        , expr = changeWsForList ws res2.expr
+                        , expr = changeWs ws res2.expr
                         }
 
                 (DiffInsert newv1) :: restDiffs ->
@@ -434,7 +482,7 @@ uneval venv expr newv diffs =
                                         ([], esElm)
                                     else 
                                         ws 
-                                t = changeWsForList tWS res2.expr
+                                t = changeWs tWS res2.expr
                             in
                                 { venv = res2.venv
                                 , expr = ECons ws newe1 t}
@@ -472,6 +520,12 @@ uneval venv expr newv diffs =
                                 newvenv = mergeVEnv res1.venv res2.venv venv
                                 h = res1.expr
                                 t = res2.expr
+
+                                -- _ = Debug.log "v1-----" <| Debug.toString v1
+                                -- _ = Debug.log "v1Diffs" <| Debug.toString v1Diffs
+                                -- _ = Debug.log "newe1" <| Debug.toString h
+                                -- _ = Debug.log "newv1" <| Debug.toString newv1
+
                             in
                                 { venv = newvenv
                                 , expr = ECons ws h t
@@ -565,11 +619,22 @@ uneval venv expr newv diffs =
                         v1Diffs = calcDiff v1 newv1
                         v2Diffs = calcDiff v2 newv2
 
-                        res1 = uneval venv e1 v1 v1Diffs
-                        res2 = uneval venv e2 v2 v2Diffs
+                        res1 = uneval venv e1 newv1 v1Diffs
+                        res2 = uneval venv e2 newv2 v2Diffs
 
                         newvenv =
                             mergeVEnv res1.venv res2.venv venv
+
+                        -- _ = Debug.log "v1Diffs" <| v1Diffs
+                        -- _ = Debug.log "v2Diffs" <| v2Diffs
+                        -- _ = Debug.log "v1" <| v1
+                        -- _ = Debug.log "v2" <| v2
+                        -- _ = Debug.log "e1" <| e1
+                        -- _ = Debug.log "e2" <| e2
+                        -- _ = Debug.log "newv1" <| newv1
+                        -- _ = Debug.log "newv2" <| newv2
+                        -- _ = Debug.log "newe1" <| res1.expr
+                        -- _ = Debug.log "newe2" <| res2.expr
 
                     in
                         { venv = newvenv
@@ -1097,8 +1162,10 @@ arith ws e1 e2 venv newv op diffs =
                         let 
                             (v1Diffs, v2Diffs) = splitDiffs (vConsToList v1) (vConsToList v2) diffs
                             
-                            _ = Debug.log "(v1, v2) in add" <| Debug.toString (v1, v2)
-                            _ = Debug.log "(v1Diffs, v2Diffs) in add" <| Debug.toString (v1Diffs, v2Diffs)
+                            -- _ = Debug.log "(v1, v2) in add" <| Debug.toString (v1, v2)
+                            -- _ = Debug.log "(v1Diffs, v2Diffs) in add" <| Debug.toString (v1Diffs, v2Diffs)
+                            -- _ = Debug.log "diffs in add" <| Debug.toString diffs
+
                             newv1 = applyDiffs v1 v1Diffs
                             newv2 = applyDiffs v2 v2Diffs
                         in 
