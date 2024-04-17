@@ -85,17 +85,17 @@ printAST expr =
                         EChar _ c ->
                             "\""++ (String.fromChar c) ++ (printAST e2) ++ "\"" ++ ws
 
-                        _ -> "Print Error: 05."
+                        _ -> "Print Error: 01."
                 
                 ([], 4) ->
                     case e1 of
                         EChar _ c ->
                             (String.fromChar c) ++ (printAST e2)
 
-                        _ -> "Print Error: 06."
+                        _ -> "Print Error: 02."
 
                 _ ->
-                    "Print Error: 04." ++ (Debug.toString (ls, kind))
+                    "Print Error: 03." ++ (Debug.toString (ls, kind))
 
         ENil ([ws], 3) ->
             "\"\"" ++ ws
@@ -182,7 +182,7 @@ printAST expr =
         EError info ->
             info
         
-        _ -> "Print Error: 01." ++ (Debug.toString expr)
+        _ -> "Print Error: 04." ++ (Debug.toString expr)
 
 
 printPattern : Pattern -> String
@@ -208,17 +208,17 @@ printPattern p =
                         PChar _ c ->
                             "\""++ (String.fromChar c) ++ (printPattern p2) ++ "\"" ++ ws
 
-                        _ -> "Print Error: 08."
+                        _ -> "Print Error: 05."
                 
                 ([], 4) ->
                     case p1 of
                         PChar _ c ->
                             (String.fromChar c) ++ (printPattern p2)
 
-                        _ -> "Print Error: 09."
+                        _ -> "Print Error: 06."
 
                 _ ->
-                    "Print Error: 02."
+                    "Print Error: 07."
     
         PNil ([ws1, ws2], _) ->
             "[" ++ ws1 ++ "]" ++ ws2
@@ -255,7 +255,7 @@ printPattern p =
             "," ++ ws3 ++ (printPattern p3) ++ ")" ++ ws4
 
         _ ->
-            "Print Error: 03."
+            "Print Error: 08."
 
 
 printBranch : Branch -> String
@@ -268,7 +268,7 @@ printBranch b =
             (printBranch b1) ++ "|" ++ ws ++ (printBranch b2)
 
         _ ->
-            "Print Error: 05."
+            "Print Error: 09."
 
 
 printTpl : Template -> String
@@ -291,7 +291,7 @@ printTplPart ctx tplPart =
 
                     ENil _ -> ""
 
-                    _ -> "Print Error: 03"
+                    _ -> "Print Error: 10"
 
             TplExpr ([ws], _) e -> 
                 "{{" ++ ws ++ (printAST e) ++"}}"
@@ -311,7 +311,7 @@ printTplPart ctx tplPart =
                 (printTpl t) ++ 
                 "{%" ++ ws4 ++ "endfor" ++ ws5 ++ "%}"
 
-            _ -> "Print Error: 02"
+            _ -> "Print Error: 11"
     else
         case tplPart of
             TplStr s -> 
@@ -319,10 +319,10 @@ printTplPart ctx tplPart =
                     -- substitute esQUo(3) -> esElm to avoid print quotes
                     ECons (_, 3) e1 e2 ->
                         printAST (ECons ([], esElm) e1 e2)
-
+                    
                     ENil _ -> ""
 
-                    _ -> "Print Error: 03"
+                    _ -> "Print Error: 12" ++ Debug.toString s
             
             TplNode ([ws1, ws2, ws3], _) n e t ->
                 "<" ++ n ++ ws1 ++ (printTplNodeAttr e) ++ ">" ++ 
@@ -335,19 +335,19 @@ printTplPart ctx tplPart =
             TplSet ([ws1, ws2, ws3, ws4], _) p e ->
                 "{%" ++ ws1 ++ "set" ++ ws2 ++ (printPattern p) ++ "=" ++ ws3 ++ (printAST e) ++ "%}" ++ ws4
 
-            TplIf ([ws1, ws2, ws3, ws4, ws5, ws6, ws7, ws8, ws9], _) e t1 t2 ->
+            TplIf ([ws1, ws2, ws3, ws4, ws5, ws6, ws7, ws8, ws9, ws10], _) e t1 t2 ->
                 "{%" ++ ws1 ++ "if" ++ ws2 ++ (printAST e) ++ "then" ++ ws3 ++ "%}" ++
                 ws4 ++ (printTpl t1) ++ 
                 "{%" ++ ws5 ++ "else" ++ ws6 ++ "%}" ++
                 ws7 ++ (printTpl t2) ++ 
-                "{%" ++ ws8 ++ "endif" ++ ws9 ++ "%}"
+                "{%" ++ ws8 ++ "endif" ++ ws9 ++ "%}" ++ ws10
             
             TplForeach ([ws1, ws2, ws3, ws4, ws5, ws6, ws7], _) p e t -> 
                 "{%" ++ ws1 ++ "for" ++ ws2 ++ (printPattern p) ++ "in" ++ ws3 ++ (printAST e) ++ "%}" ++ 
                 ws4 ++ (printTpl t) ++ 
                 "{%" ++ ws5 ++ "endfor" ++ ws6 ++ "%}" ++ ws7
 
-            _ -> "Print Error: 02"
+            _ -> "Print Error: 13" ++ Debug.toString tplPart ++ " "
 
 
 printTplNodeAttr : Expr -> String
@@ -366,11 +366,11 @@ printTplNodeAttr attrs =
 
                         _ -> "Print Error: 14"
                 
-                _ -> "Print Error: 12" ++ (Debug.toString attr)
+                _ -> "Print Error: 15" ++ (Debug.toString attr)
 
         ENil _ -> "" 
 
-        _ -> "Print Error: 13"
+        _ -> "Print Error: 16"
 
 -- processBeforePrint: 给 case 的 branch 去编号，BNSin -> BSin
 
@@ -1068,6 +1068,16 @@ changeWsForList ws expr =
 
         _ ->
             EError ("Impossible!" ++ (Debug.toString expr))
+
+
+changeWs : WS -> Expr -> Expr
+changeWs ws expr =
+    case expr of
+        ENil _ -> ENil ws
+
+        ECons _ e1 e2 -> ECons ws e1 e2
+
+        _ -> EError "Change WS Not Implement for this expr pattern!"
 
 
 lengthUntil : String -> VEnv -> Int
@@ -1800,40 +1810,30 @@ calcDiff oldv newv =
 
 splitDiffs : List Value -> List Value -> List (DiffOp Value) -> (List (DiffOp Value), List (DiffOp Value))
 splitDiffs v1 v2 diffs =
-    let 
-        (v1Diffs, v2Diffs) = splitDiffsHelp (List.isEmpty v1) v1 v2 diffs
-    in  
-        (List.reverse v1Diffs, v2Diffs)
+    case v1 of 
+        [] -> ([], diffs)
+        
+        _ :: v1t ->
+            case diffs of
+                [] -> 
+                    if List.isEmpty v2 then
+                        ([], [])
+                    else 
+                        let
+                            _ = Debug.log "In splitDiffHelp" "Non Empty list but empty diffs"
+                        in
+                            ([], [])
 
-splitDiffsHelp : Bool -> List Value -> List Value -> List (DiffOp Value) -> (List (DiffOp Value), List (DiffOp Value))
-splitDiffsHelp insertRight v1 v2 diffs =
-    case diffs of
-        [] -> 
-            if List.isEmpty v1 && List.isEmpty v2 then
-                ([], [])
-            else 
-                let
-                    _ = Debug.log "In splitDiffHelp" "Non Empty list but empty diffs"
-                in
-                    ([], [])
-
-        (DiffInsert _ as diff) :: restDiffs ->
-            let
-                (v1Diffs, v2Diffs) = splitDiffsHelp insertRight v1 v2 restDiffs
-            in
-                if insertRight && List.isEmpty v1 then
-                    ([], diff :: v2Diffs)
-                else 
-                    (diff :: v1Diffs, v2Diffs)
-
-
-        diff :: restDiffs ->
-            case v1 of
-                [] -> ([], diffs)
-
-                _ :: v1t ->
+                (DiffInsert _ as diff) :: restDiffs ->
                     let
-                        (v1Diffs, v2Diffs) = splitDiffsHelp insertRight v1t v2 restDiffs
+                        (v1Diffs, v2Diffs) = splitDiffs v1 v2 restDiffs
+                    in
+                        (diff :: v1Diffs, v2Diffs)
+
+
+                diff :: restDiffs ->
+                    let
+                        (v1Diffs, v2Diffs) = splitDiffs v1t v2 restDiffs
                     in
                         (diff :: v1Diffs, v2Diffs)
 
@@ -1873,3 +1873,35 @@ applyDiffs oldv diffs =
                 _ -> VError ("Apply Diffs Error: 03 - Update/Delete/Keep diff operation on empty list!" ++ " - " ++ Debug.toString diffs)
         
         _ -> VError "Apply Diffs Error: 01 - apply diffs to non list value!"
+
+
+makeTplIdentity : Expr -> WS -> Expr -> Expr -> Expr
+makeTplIdentity identity ws eTPart restTplExpr =
+    case eTPart of
+        ENode _ _ attrs _ ->
+            let
+                tpWS = 
+                    if identity == lamTplNode then 
+                        ws 
+                    else 
+                        case attrs of
+                            ECons _ _ _ -> ([" ", "", "\n"], defaultId)
+                            _ -> (["", "", "\n"], defaultId)
+
+            in        
+                EApp tpWS lamTplNode (ECons defaultWS eTPart restTplExpr)
+        
+        ECons (_, eid) _ _ ->
+            if eid == esQuo || eid == esElm then
+                EApp defaultWS lamTplStr (ECons defaultWS eTPart restTplExpr)
+            else 
+                EError  "Cannot convert a list to a template part!"
+
+        _ -> EError ("Cannot convert expr except node & str to a template part! - " ++ Debug.toString eTPart)
+            
+ 
+vConsTail : Value -> Value
+vConsTail v =
+    case v of
+        VCons _ _ tv -> tv
+        _ -> VError "Get tail in VCons Error!"
