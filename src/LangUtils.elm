@@ -324,6 +324,9 @@ printTplPart ctx tplPart =
 
                     _ -> "Print Error: 12" ++ Debug.toString s
             
+            TplNode ([ws1, ws2], _) n e _ ->    -- for special template node, e.g., <br>
+                "<" ++ n ++ ws1 ++ (printTplNodeAttr e) ++ ">" ++ ws2
+
             TplNode ([ws1, ws2, ws3], _) n e t ->
                 "<" ++ n ++ ws1 ++ (printTplNodeAttr e) ++ ">" ++ 
                 ws2 ++ (printTpl t) ++ 
@@ -1099,9 +1102,13 @@ printNode nodeName attr childs =
         at = printAttr attr
         cd = printChilds childs    
     in
-        "<" ++ nodeName ++ " " ++ 
-        "contenteditable=\"true\" " ++ at ++ ">" ++ cd ++ 
-        "</" ++ nodeName ++ ">" 
+        if List.member nodeName specialNodeNameStr then
+            "<" ++ nodeName ++ " " ++ 
+            "contenteditable=\"true\" " ++ at ++ ">" 
+        else
+            "<" ++ nodeName ++ " " ++ 
+            "contenteditable=\"true\" " ++ at ++ ">" ++ cd ++ 
+            "</" ++ nodeName ++ ">" 
     
 
 printStyle : Value -> String
@@ -1876,36 +1883,35 @@ applyDiffs oldv diffs =
         _ -> VError "Apply Diffs Error: 01 - apply diffs to non list value!"
 
 
-makeTplIdentity : Expr -> WS -> Expr -> Expr -> Expr
-makeTplIdentity identity ws eTPart restTplExpr =
-    case eTPart of
+makeTplIdentity : Expr -> WS -> Expr -> Expr -> Expr -> Expr
+makeTplIdentity identity ws oldeTPart neweTPart restTplExpr =
+    case neweTPart of
         ENode _ _ attrs _ ->
             let
                 ws1 = 
                     if identity == lamTplNode then 
-                        ws 
+                        alignTpWs (getENodeName oldeTPart) (getENodeName neweTPart) ws
                     else 
-                        (["", "", "\n"], defaultId)
+                        (["", "", " "], defaultId)
                 
                 tpWS = 
                     case attrs of
                         ECons _ _ _ -> 
                             case ws1 of
-                                ("" :: ts, eid) ->
-                                    (" " :: ts, eid)
+                                ("" :: ts, eid) -> (" " :: ts, eid)
                                 _ -> ws1
                         _ -> ws1
 
             in        
-                EApp tpWS lamTplNode (ECons defaultWS eTPart restTplExpr)
+                EApp tpWS lamTplNode (ECons defaultWS neweTPart restTplExpr)
         
         ECons (_, eid) _ _ ->
             if eid == esQuo || eid == esElm then
-                EApp defaultWS lamTplStr (ECons defaultWS eTPart restTplExpr)
+                EApp defaultWS lamTplStr (ECons defaultWS neweTPart restTplExpr)
             else 
                 EError  "Cannot convert a list to a template part!"
 
-        _ -> EError ("Cannot convert expr except node & str to a template part! - " ++ Debug.toString eTPart)
+        _ -> EError ("Cannot convert expr except node & str to a template part! - " ++ Debug.toString neweTPart)
             
  
 vConsTail : Value -> Value
@@ -1913,3 +1919,30 @@ vConsTail v =
     case v of
         VCons _ _ tv -> tv
         _ -> VError "Get tail in VCons Error!"
+
+getVNodeName : Value -> String
+getVNodeName v =
+    case v of
+        VNode n _ _ -> n
+        _ -> "Get VNodeName Error."
+
+
+getENodeName : Expr -> String
+getENodeName e = 
+    case e of
+        ENode _ n _ _ -> n
+        _ -> "Get ENodeName Error."
+
+
+alignTpWs : String -> String -> WS -> WS
+alignTpWs oldn newn ws =
+    case (List.member oldn specialNodeNameStr, List.member newn specialNodeNameStr) of
+        (True, False) ->
+            case ws of
+                ([ws1, ws2], id) -> ([ws1, "", ws2], id)
+                _ -> ws -- error branch
+        (False, True) ->
+            case ws of
+                ([ws1, _, ws3], id) -> ([ws1, ws3], id)
+                _ -> ws -- error branch
+        _ -> ws

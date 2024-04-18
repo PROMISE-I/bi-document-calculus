@@ -275,7 +275,7 @@ uneval venv expr newv diffs =
                                     res2 = uneval venv expr (vConsTail newv) restDiffs
                                 in
                                     { venv = res2.venv
-                                    , expr = makeTplIdentity e1 ws newTPartE res2.expr
+                                    , expr = makeTplIdentity e1 ws tPartE newTPartE res2.expr  
                                     }  
 
                             (DiffKeep _) :: restDiffs ->
@@ -296,9 +296,16 @@ uneval venv expr newv diffs =
                                     res2 = uneval venv restTplExpr (vConsTail newv) restDiffs 
 
                                     newvenv = mergeVEnv res1.venv res2.venv venv
+
+                                    tpWs = alignTpWs (getVNodeName vTPart) (getVNodeName newvTPart) ws
+
+                                    -- _ = Debug.log "env-update-v" <| Debug.toString [vTPart, newvTPart]
+                                    -- _ = Debug.log "env-update-e" <| Debug.toString res1.expr
+                                    -- _ = Debug.log "env-update-ws" <| Debug.toString [ws, tpWs]
+                                            
                                 in
                                     { venv = newvenv
-                                    , expr = EApp ws e1 (ECons ws1 res1.expr res2.expr)}  
+                                    , expr = EApp tpWs e1 (ECons ws1 res1.expr res2.expr)}  
 
                     _ -> 
                         { venv = []

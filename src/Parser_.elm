@@ -477,7 +477,7 @@ tplPart ctx =
             ]  
         
         treeTplPartParsers = 
-            List.append strTplPartParsers [tplNode]
+            List.append strTplPartParsers [tplSpecialNode, tplNode]
 
         tplPartParsers = 
             if ctx == stctx then
@@ -537,6 +537,26 @@ getChompedStringUntilAny stops =
     runInnerParser (stopParser stops) (tplStrChompCallBack stops 0) 
         |> getChompedString
 
+
+specialNodeName : Parser String
+specialNodeName = 
+    oneOf <| List.map (\s -> succeed(s) |. symbol s) specialNodeNameStr 
+
+tplSpecialNode : Parser TplPart
+tplSpecialNode =
+    succeed (\n s1 attrs s2 -> 
+                TplNode 
+                    ([s1, s2], defaultId)
+                    n
+                    attrs
+                    (TNil atctx)
+            )
+        |. backtrackable (symbol "<")
+        |= specialNodeName
+        |= mSpaces
+        |= tplNodeAttrs
+        |. symbol ">"
+        |= mSpaces
 
 tplNode : Parser TplPart
 tplNode = 

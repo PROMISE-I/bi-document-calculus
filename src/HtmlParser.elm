@@ -33,6 +33,9 @@ nodeToValue node =
                             [Text c] ->
                                 c |> toList |> stringToVCons
                             
+                            [Element "br" [] []] ->
+                                VNode "br" (VNil 0) (VNil 0)
+                            
                             [] -> 
                                 [] |> stringToVCons
 
