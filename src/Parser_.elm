@@ -580,10 +580,16 @@ tplNodeAttr : Parser Expr
 tplNodeAttr = 
     -- <n><s1>=<s2><v>
     succeed (\n s1 s2 v -> 
-                EBTuple 
-                    ([s1, s2], defaultId) 
-                    (n |> String.toList |> stringToExpr ([" "], esQuo))
-                    v
+                let
+                    (v1, s3) = 
+                        case v of
+                            ECons ([ws], eid) _ _ -> (changeWs ([""], eid) v, ws)
+                            _ -> (v, "")
+                in
+                    EBTuple 
+                        ([s1, s2, s3], defaultId) 
+                        (n |> String.toList |> stringToExpr ([" "], esQuo))
+                        v1
             )
         |= varName
         |= mSpaces

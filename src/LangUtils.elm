@@ -355,13 +355,14 @@ printTplNodeAttr attrs =
     case attrs of
         ECons _ attr restAttrs ->
             case attr of
-                EBTuple ([ws1, ws2], _) n v ->
+                EBTuple ([ws1, ws2, ws3], _) n v ->
                     case n of
                         ECons (_, 3) e1 e2 ->
                             let
                                 nWithoutQuo = ECons ([], esElm) e1 e2 
+                                vWithoutWs = changeWs ([""], esQuo) v
                             in
-                                (printAST nWithoutQuo) ++ ws1 ++ "=" ++ ws2 ++ (printAST v) ++ 
+                                (printAST nWithoutQuo) ++ ws1 ++ "=" ++ ws2 ++ (printAST vWithoutWs) ++ ws3 ++ 
                                 (printTplNodeAttr restAttrs)
 
                         _ -> "Print Error: 14"
@@ -969,7 +970,7 @@ valueToExpr v =
                 e2 =
                     valueToExpr v2 |> addQuoOrSquareForList
             in
-                EBTuple defaultWS e1 e2
+                EBTuple (["", "", " "], defaultId) e1 e2
 
         VTTuple v1 v2 v3 ->
             let
@@ -1880,13 +1881,20 @@ makeTplIdentity identity ws eTPart restTplExpr =
     case eTPart of
         ENode _ _ attrs _ ->
             let
-                tpWS = 
+                ws1 = 
                     if identity == lamTplNode then 
                         ws 
                     else 
-                        case attrs of
-                            ECons _ _ _ -> ([" ", "", "\n"], defaultId)
-                            _ -> (["", "", "\n"], defaultId)
+                        (["", "", "\n"], defaultId)
+                
+                tpWS = 
+                    case attrs of
+                        ECons _ _ _ -> 
+                            case ws1 of
+                                ("" :: ts, eid) ->
+                                    (" " :: ts, eid)
+                                _ -> ws1
+                        _ -> ws1
 
             in        
                 EApp tpWS lamTplNode (ECons defaultWS eTPart restTplExpr)

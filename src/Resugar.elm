@@ -331,7 +331,11 @@ resugarTemplate ctx expr =
                             case childsTplRes of 
                                 Result.Ok childsTpl -> 
                                     let
-                                        nodeTPart = TplNode ([" ", " ", " "], defaultId) n attrsExpr childsTpl
+                                        tpWS = 
+                                            case attrsExpr of
+                                                ECons _ _ _ -> ([" ", "", " "], defaultId)
+                                                _ -> (["", "", " "], defaultId)
+                                        nodeTPart = TplNode tpWS n attrsExpr childsTpl
                                         restTPartsRes = resugarTemplate ctx restExpr
                                     in
                                         case restTPartsRes of
