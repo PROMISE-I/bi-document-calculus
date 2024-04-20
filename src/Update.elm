@@ -677,9 +677,24 @@ uneval venv expr newv diffs =
                         , expr = ENode ws s res1.expr res2.expr
                         }
 
+                VCons _ _ _ ->
+                    let 
+                        ne = valueToExpr newv
+                        neWs = 
+                            case ws of
+                                ([_, _, s3], _) -> ([s3], esQuo)
+                                _ -> ([" "], esQuo)
+
+                        -- _ = Debug.log "newv" <| newv
+                        -- _ = Debug.log "newe" <| ne
+                    in
+                        { venv = venv
+                        , expr = changeWs neWs ne
+                        }
+
                 _ -> let _ = newv in
                     { venv = []
-                    , expr = EError "Node Update Error."
+                    , expr = EError ("Node Update Error." ++ print newv)
                     }
 
         ENil (pads, eId) ->
@@ -1449,8 +1464,8 @@ mapWalk venv fExpr xsValue newv diffs headOrPreviousInputValue =
 
                     newvid = getVConsId xsValue
 
-                    _ = Debug.log "mapWalk-olde" <| Debug.toString olde
-                    _ = Debug.log "mapWalk-newx" <| Debug.toString newxValue
+                    -- _ = Debug.log "mapWalk-olde" <| Debug.toString olde
+                    -- _ = Debug.log "mapWalk-newx" <| Debug.toString newxValue
                     
                 in
                     { venv = newvenv
@@ -1522,8 +1537,9 @@ flattenUneval venv xss newv diffs =
 
         res2 = uneval venv xss newxssValue xssDiffs
 
-        _ = Debug.log "flatten-uneval-xssValue" <| print xssValue
-        _ = Debug.log "flatten-uneval-newv" <| print newv
+        -- _ = Debug.log "flatten-uneval-xssValue" <| print xssValue
+        -- _ = Debug.log "flatten-uneval-newv" <| print newv
+        -- _ = Debug.log "flatten-uneval-diffs" <| diffs
     in
         (res2.venv, res2.expr)
 
@@ -1539,8 +1555,8 @@ flattenWalk xssValue diffs headOrPreviousInputValue =
                 all_keep = isAllKeep xsDiffs
                 all_insert = isAllInsert xsDiffs
 
-                _ = Debug.log "flatten-walk-vcons-1" <| Debug.toString (xsDiffs, tssDiffs)
-                _ = Debug.log "flatten-walk-vcons-2" <| Debug.toString (all_delete, all_keep, all_insert)
+                -- _ = Debug.log "flatten-walk-vcons-1" <| Debug.toString (xsDiffs, tssDiffs)
+                -- _ = Debug.log "flatten-walk-vcons-2" <| Debug.toString (all_delete, all_keep, all_insert)
 
             in
                 if all_delete then
@@ -1591,8 +1607,8 @@ flattenWalk xssValue diffs headOrPreviousInputValue =
                     List.length xsDiffs == List.length (vConsToList headOrPreviousInputValue)
                 all_insert = isAllInsert xsDiffs
 
-                _ = Debug.log "vnil-1" <| Debug.toString (xsDiffs, tssDiffs)
-                _ = Debug.log "vnil-2" <| Debug.toString all_insert
+                -- _ = Debug.log "vnil-1" <| Debug.toString (xsDiffs, tssDiffs)
+                -- _ = Debug.log "vnil-2" <| Debug.toString all_insert
             in
                 if List.length diffs == 0 then  -- terminate condition
                     { xssValue = VNil vid
