@@ -1,0 +1,42 @@
+letrec len = 
+    \xs => 
+        case xs of
+            [] => 0
+            | _::ts => 1 + (len ts) 
+in
+let managerName = " John " in
+let concatInfo = "18300000000" in
+let foods = [
+    ("Drink", ["Water", "Juice", "Soda", "Tea", "Coffee", "Milk", "Beer"]), 
+    ("Staple food", ["Rice" , "Corn", "Potato", "Bread", "Pasta", "Yam"]),
+    ("Dessert", ["Cake", "Cookie", "Ice Cream", "Chocolate", "Pie", "Tart"])
+] in
+{*
+    <h1>Welcome to the restaurant of PLL</h1>
+    
+    <div class="manager-info">
+        <p>Manager: {{managerName}} is always at your service!</p>
+        <p>Fell free to concat the manager: {{concatInfo}}.</p>
+    </div>
+    
+    <div>
+        <p>Today, we serves {{toString (len foods)}} kinds of foods.</p>
+    </div>
+    
+    {% for (typeDesc, items) in foods %}
+    <table>
+        <thead>
+            <tr>
+                <th><b>{{typeDesc}}</b></th>    
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+            <tr>
+                <td>{{item}}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endfor %}
+*}
