@@ -139,6 +139,35 @@ uneval venv expr newv diffs =
                     }
 
 
+    -- ad hoc uneval semantics of $map$
+        EApp
+            ws1
+            (
+                EApp 
+                    ws2
+                    (EVar ws3 "map")
+                    e1
+            )
+            e2 ->
+                let
+                    (newvenv, newe1, newe2) = mapUneval venv e1 e2 newv diffs
+                in
+                    { venv = newvenv
+                    , expr = EApp ws1 (EApp ws2 eVarMap newe1) newe2
+                    }              
+                
+        -- ad hoc uneval semantics of $flatten$
+        -- EApp
+        --     ws1 
+        --     (EVar ws2 "flatten")
+        --     e ->
+        --         let
+        --             (newvenv, newe) = flattenUneval venv e newv diffs
+        --         in
+        --             { venv = newvenv
+        --             , expr = EApp ws1 eVarFlatten newe 
+        --             }
+
         -- ad hoc uneval semantics of $append$
         EApp
             ws1
@@ -479,7 +508,7 @@ uneval venv expr newv diffs =
                     case newv of
                         VCons _ _ newv2 -> 
                             let
-                                newe1 = valueToExpr newv1
+                                newe1 = valueToExpr newv1 |> addQuoOrSquareForList
                                 res2 = uneval venv expr newv2 restDiffs
 
                                 tWS = 
@@ -655,6 +684,7 @@ uneval venv expr newv diffs =
 
         ENil (pads, eId) ->
             case newv of
+                -- TODO: separate list nil from string nil
                 VNil vId ->
                     { venv = venv
                     , expr = ENil (pads, vIdToEId vId eId)
@@ -1324,3 +1354,158 @@ checkChange venv ws op e1 e2 v1 v2 newv1 newv2 v1Diffs v2Diffs =
             { venv = newvenv
             , expr = EBPrim ws op res1.expr res2.expr
             }
+
+
+mapUneval : VEnv -> Expr -> Expr -> Value -> List (DiffOp Value) -> (VEnv, Expr, Expr)
+mapUneval venv fExpr xsExpr newv diffs =
+    let        
+        xsValue = getValueFromExprNode (eval venv xsExpr)
+        headInputValue = 
+            case xsValue of
+                VCons _ v1 _ -> v1
+                _ -> VError "Head Input Value doesn't exists."
+
+        res1 = mapWalk venv fExpr xsValue newv diffs headInputValue
+        newvenv1 = res1.venv
+        newfExpr = res1.fExpr
+        newxsValue = res1.xsValue
+        xsDiffs = res1.diffs
+
+        res2 = uneval venv xsExpr newxsValue xsDiffs
+        newvenv2 = res2.venv
+        newxsExpr = res2.expr
+
+        newvenv = mergeVEnv newvenv1 newvenv2 venv
+
+        _ = Debug.log "mapUneval-(xsExpr, newv)" <| Debug.toString (xsExpr, newv)
+        _ = Debug.log "mapUneval-newxsValue" <| Debug.toString newxsValue
+        _ = Debug.log "mapUneval-xsDiffs" <| Debug.toString xsDiffs
+
+    in
+        (newvenv, newfExpr, newxsExpr)
+    
+
+mapWalk : VEnv -> Expr -> Value -> Value -> List (DiffOp Value) -> Value -> MapWalkRes
+mapWalk venv fExpr xsValue newv diffs headOrPreviousInputValue =
+    let
+        errMsg = "Map Uneval Error." ++ Debug.toString (xsValue, newv, diffs)
+        errRes =
+            { venv = []
+            , fExpr = EError errMsg
+            , xsValue = VError errMsg
+            , diffs = []
+            } 
+        
+    in
+        case (diffs, xsValue, newv) of
+            ([], VNil _, VNil _) -> 
+                { venv = venv
+                , fExpr = fExpr
+                , xsValue = xsValue
+                , diffs = []
+                } 
+
+            ((DiffDelete _) :: restDiffs, VCons _ v1 v2, _) ->
+                let
+                    res = mapWalk venv fExpr v2 newv restDiffs v1
+                    newvenv = res.venv
+                    newfExpr = res.fExpr
+                    newxsValue = res.xsValue
+                    newDiffs = res.diffs
+                in
+                    { venv = newvenv
+                    , fExpr = newfExpr
+                    , xsValue = newxsValue
+                    , diffs = (DiffDelete v1) :: newDiffs
+                    }
+            
+            ((DiffInsert newv1) :: restDiffs, _, VCons _ _ newv2) ->
+                let 
+                    -- convert value to expr
+                    olde = valueToExpr headOrPreviousInputValue
+                    applyF = EApp defaultWS fExpr olde
+
+                    oldv1 = getValueFromExprNode (eval venv applyF)
+                    v1Diffs = calcDiff oldv1 newv1
+                    -- update: v |> f headOrPreviousInputValue 
+                    res1 = uneval venv applyF newv1 v1Diffs
+                    
+                    newvenv1 = res1.venv
+                    (newfExpr1, newxExpr) = 
+                        case res1.expr of
+                            EApp _ f1 x1 -> (f1, x1)
+                            _ -> (fExpr, EError "Function f update error in map.")
+                    newxValue = getValueFromExprNode (eval venv newxExpr)
+
+                    res2 = mapWalk venv fExpr xsValue newv2 restDiffs headOrPreviousInputValue 
+                    newvenv2 = res2.venv
+                    newfExpr2 = res2.fExpr
+                    newxsValue = res2.xsValue
+                    newDiffs = res2.diffs
+
+                    -- merge result
+                    newvenv = mergeVEnv newvenv1 newvenv2 venv
+                    newfExpr = mergeFunc newfExpr1 newfExpr2 fExpr
+
+                    newvid = getVConsId xsValue
+
+                    _ = Debug.log "mapWalk-olde" <| Debug.toString olde
+                    _ = Debug.log "mapWalk-newx" <| Debug.toString newxValue
+                    
+                in
+                    { venv = newvenv
+                    , fExpr = newfExpr
+                    , xsValue = VCons newvid newxValue newxsValue
+                    , diffs = (DiffInsert newxValue) :: newDiffs
+                    }
+
+            ((DiffKeep _) :: restDiffs, VCons vid v1 v2, VCons _ _ newv2) ->
+                let 
+                    res = mapWalk venv fExpr v2 newv2 restDiffs v1
+                    newvenv = res.venv
+                    newfExpr = res.fExpr
+                    newxsValue = res.xsValue
+                    newDiffs = res.diffs
+                in
+                    { venv = newvenv
+                    , fExpr = newfExpr
+                    , xsValue = VCons vid v1 newxsValue
+                    , diffs = (DiffKeep v1) :: newDiffs
+                    }
+            
+            ((DiffUpdate newv1) :: restDiffs, VCons vid v1 v2, VCons _ _ newv2) ->
+                let
+                    olde = valueToExpr v1
+                    applyF = EApp defaultWS fExpr olde
+
+                    oldv1 = getValueFromExprNode (eval venv applyF)
+                    v1Diffs = calcDiff oldv1 newv1
+                    res1 = uneval venv applyF newv1 v1Diffs
+
+                    newvenv1 = res1.venv
+                    (newfExpr1, newxExpr) = 
+                        case res1.expr of
+                            (EApp _ f1 x1) -> (f1, x1)
+                            _ -> (fExpr, EError "Function f update error in map.")
+                    newxValue = getValueFromExprNode (eval venv newxExpr)
+
+                    res2 = mapWalk venv fExpr v2 newv2 restDiffs v1
+                    newvenv2 = res2.venv
+                    newfExpr2 = res2.fExpr
+                    newxsValue = res2.xsValue
+                    newDiffs = res2.diffs
+
+                    newvenv = mergeVEnv newvenv1 newvenv2 venv
+                    newfExpr = mergeFunc newfExpr1 newfExpr2 fExpr
+                in
+                    { venv = newvenv
+                    , fExpr = newfExpr
+                    , xsValue = VCons vid newxValue newxsValue
+                    , diffs = (DiffUpdate newxValue) :: newDiffs
+                    }
+
+            _ -> errRes
+
+flattenUneval : VEnv -> Expr -> Value -> List (DiffOp Value) -> (VEnv, Expr)
+flattenUneval venv xss newv diffs = 
+    ([], EError "")
