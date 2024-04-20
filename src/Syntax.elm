@@ -265,3 +265,8 @@ type alias MapWalkRes =
     , xsValue : Value
     , diffs : List (DiffOp Value)
     }
+
+type alias FlattenWalkRes =
+    { xssValue : Value
+    , diffs : List (DiffOp Value)
+    }
