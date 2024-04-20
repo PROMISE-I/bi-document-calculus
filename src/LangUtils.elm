@@ -1974,3 +1974,62 @@ mergeFunc f1 f2 f =
         f1
     else 
         f2
+
+
+splitOutputList : Value -> List (DiffOp Value) -> (List (DiffOp Value), List (DiffOp Value))
+splitOutputList firstElementValue diffs =
+    let
+        firstElementList = vConsToList firstElementValue     
+        firstElementLen = List.length firstElementList
+    in
+        case firstElementList of
+            [VError _] -> ([], [])
+
+            _ ->
+                if firstElementLen < List.length diffs then
+                    let
+                        maybeNewElementDiffs = List.take firstElementLen diffs 
+                        isNewElement = 
+                            isAllDelete maybeNewElementDiffs || 
+                            isAllKeep maybeNewElementDiffs || 
+                            isAllInsert maybeNewElementDiffs
+                    in
+                        if isNewElement then
+                            (maybeNewElementDiffs, List.drop firstElementLen diffs)
+                        else
+                            -- Caution: the second arg og `splitDiffs` is set to empty, because
+                            --          in this version, the second arg is no used in splitDiffs
+                            splitDiffs firstElementList [] diffs    
+
+                else 
+                    (diffs, [])
+
+
+isAllDelete : List (DiffOp a) -> Bool
+isAllDelete diffs = 
+    List.all 
+        (\diff -> 
+            case diff of
+                DiffDelete _ -> True
+                _ -> False)
+        diffs
+
+
+isAllKeep : List (DiffOp a) -> Bool
+isAllKeep diffs = 
+    List.all 
+        (\diff -> 
+            case diff of
+                DiffKeep _ -> True
+                _ -> False)
+        diffs
+
+
+isAllInsert : List (DiffOp a) -> Bool
+isAllInsert diffs = 
+    List.all 
+        (\diff -> 
+            case diff of
+                DiffInsert _ -> True
+                _ -> False)
+        diffs
