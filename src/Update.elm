@@ -157,16 +157,16 @@ uneval venv expr newv diffs =
                     }              
                 
         -- ad hoc uneval semantics of $flatten$
-        -- EApp
-        --     ws1 
-        --     (EVar ws2 "flatten")
-        --     e ->
-        --         let
-        --             (newvenv, newe) = flattenUneval venv e newv diffs
-        --         in
-        --             { venv = newvenv
-        --             , expr = EApp ws1 eVarFlatten newe 
-        --             }
+        EApp
+            ws1 
+            (EVar ws2 "flatten")
+            e ->
+                let
+                    (newvenv, newe) = flattenUneval venv e newv diffs
+                in
+                    { venv = newvenv
+                    , expr = EApp ws1 eVarFlatten newe 
+                    }
 
         -- ad hoc uneval semantics of $append$
         EApp
@@ -1363,7 +1363,7 @@ mapUneval venv fExpr xsExpr newv diffs =
         headInputValue = 
             case xsValue of
                 VCons _ v1 _ -> v1
-                _ -> VError "Head Input Value doesn't exists."
+                _ -> VError "Map head Input Value doesn't exists."
 
         res1 = mapWalk venv fExpr xsValue newv diffs headInputValue
         newvenv1 = res1.venv
@@ -1377,9 +1377,9 @@ mapUneval venv fExpr xsExpr newv diffs =
 
         newvenv = mergeVEnv newvenv1 newvenv2 venv
 
-        _ = Debug.log "mapUneval-(xsExpr, newv)" <| Debug.toString (xsExpr, newv)
-        _ = Debug.log "mapUneval-newxsValue" <| Debug.toString newxsValue
-        _ = Debug.log "mapUneval-xsDiffs" <| Debug.toString xsDiffs
+        -- _ = Debug.log "mapUneval-(xsExpr, newv)" <| Debug.toString (xsExpr, newv)
+        -- _ = Debug.log "mapUneval-newxsValue" <| Debug.toString newxsValue
+        -- _ = Debug.log "mapUneval-xsDiffs" <| Debug.toString xsDiffs
 
     in
         (newvenv, newfExpr, newxsExpr)
@@ -1506,6 +1506,119 @@ mapWalk venv fExpr xsValue newv diffs headOrPreviousInputValue =
 
             _ -> errRes
 
+
 flattenUneval : VEnv -> Expr -> Value -> List (DiffOp Value) -> (VEnv, Expr)
 flattenUneval venv xss newv diffs = 
-    ([], EError "")
+    let
+        xssValue = getValueFromExprNode (eval venv xss)
+        headInputValue = 
+            case xssValue of
+                VCons _ v1 _ -> v1
+                _ -> VError "Flatten head Input Value doesn't exists."
+        
+        res1 = flattenWalk xssValue diffs headInputValue
+        newxssValue = res1.xssValue
+        xssDiffs = res1.diffs
+
+        res2 = uneval venv xss newxssValue xssDiffs
+
+        _ = Debug.log "flatten-uneval-xssValue" <| print xssValue
+        _ = Debug.log "flatten-uneval-newv" <| print newv
+    in
+        (res2.venv, res2.expr)
+
+
+flattenWalk : Value -> List (DiffOp Value) -> Value -> FlattenWalkRes
+flattenWalk xssValue diffs headOrPreviousInputValue =
+    case xssValue of
+        VCons vid xsValue tssValue ->
+            let
+                (xsDiffs, tssDiffs) = splitOutputList xsValue diffs 
+
+                all_delete = isAllDelete xsDiffs
+                all_keep = isAllKeep xsDiffs
+                all_insert = isAllInsert xsDiffs
+
+                _ = Debug.log "flatten-walk-vcons-1" <| Debug.toString (xsDiffs, tssDiffs)
+                _ = Debug.log "flatten-walk-vcons-2" <| Debug.toString (all_delete, all_keep, all_insert)
+
+            in
+                if all_delete then
+                    let
+                        res = flattenWalk tssValue tssDiffs xsValue
+                        newtssValue = res.xssValue
+                        newDiffs = res.diffs
+                    in
+                        { xssValue = newtssValue
+                        , diffs = (DiffDelete xsValue) :: newDiffs
+                        }
+                    
+                else if all_keep then
+                    let 
+                        res = flattenWalk tssValue tssDiffs xsValue
+                        newtssValue = res.xssValue
+                        newDiffs = res.diffs
+                    in
+                        { xssValue = VCons vid xsValue newtssValue
+                        , diffs = (DiffKeep xsValue) :: newDiffs
+                        }
+                else if all_insert then
+                    let 
+                        newxsValue = applyDiffs (VNil vid) xsDiffs
+                        
+                        res = flattenWalk xssValue tssDiffs headOrPreviousInputValue
+                        newtssValue = res.xssValue
+                        newDiffs = res.diffs
+                    in
+                        { xssValue = VCons vid newxsValue newtssValue
+                        , diffs = (DiffInsert newxsValue) :: newDiffs}
+                else 
+                    let 
+                        newxsValue = applyDiffs xsValue xsDiffs
+                        res = flattenWalk tssValue tssDiffs xsValue
+                        newtssValue = res.xssValue
+                        newDiffs = res.diffs
+                    in
+                        { xssValue = VCons vid newxsValue newtssValue
+                        , diffs = (DiffUpdate newxsValue) :: newDiffs
+                        }
+
+        VNil vid -> 
+            let 
+                (xsDiffs, tssDiffs) = splitOutputList headOrPreviousInputValue diffs 
+
+                same_length = 
+                    List.length xsDiffs == List.length (vConsToList headOrPreviousInputValue)
+                all_insert = isAllInsert xsDiffs
+
+                _ = Debug.log "vnil-1" <| Debug.toString (xsDiffs, tssDiffs)
+                _ = Debug.log "vnil-2" <| Debug.toString all_insert
+            in
+                if List.length diffs == 0 then  -- terminate condition
+                    { xssValue = VNil vid
+                    , diffs = []
+                    }
+
+                else if same_length && all_insert then
+                    let 
+                        newxsValue = applyDiffs (VNil vid) xsDiffs
+                        res = flattenWalk (VNil vid) tssDiffs headOrPreviousInputValue
+                        newtssValue = res.xssValue
+                        newDiffs = res.diffs
+                    in
+                        { xssValue = VCons vid newxsValue newtssValue
+                        , diffs = (DiffInsert newxsValue) :: newDiffs}                        
+                        
+                else
+                    let
+                        newxsValue = applyDiffs (VNil vid) xsDiffs
+                    in
+                        { xssValue = VCons vid newxsValue (VNil vid)
+                        , diffs = [DiffInsert newxsValue]}
+
+        _ -> 
+            { xssValue = VError "Flatten Uneval Error: flatten args error, not a list."
+            , diffs = []
+            }  
+
+
