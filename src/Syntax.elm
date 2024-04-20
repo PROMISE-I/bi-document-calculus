@@ -257,3 +257,11 @@ type DiffOp a
     | DiffDelete a  -- `a` is value to be deleted
     | DiffUpdate a  -- `a` is value after update
     | DiffKeep a    -- `a` is value to be kept
+
+
+type alias MapWalkRes =
+    { venv : VEnv
+    , fExpr : Expr
+    , xsValue : Value
+    , diffs : List (DiffOp Value)
+    }
