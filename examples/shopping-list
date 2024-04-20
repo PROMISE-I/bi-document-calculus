@@ -1,0 +1,13 @@
+let name = "John" in
+let items = ["Milk", "Apple", "Banana"] in
+{*
+    <h1>Diary</h1>
+    <p>Today,&nbsp; {{name}} &nbsp; is going shopping for: </p>
+    
+    <div class="c1" style="color: red;">Shopping List: </div>
+    <ol>
+        {% for item in items %}
+        <li>{{item}}</li>
+        {% endfor %}
+    </ol>
+*}
