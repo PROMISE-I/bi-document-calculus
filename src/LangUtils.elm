@@ -92,7 +92,7 @@ printAST expr =
                         EChar _ c ->
                             (String.fromChar c) ++ (printAST e2)
 
-                        _ -> "Print Error: 02."
+                        _ -> "Print Error: 02." ++ Debug.toString expr
 
                 _ ->
                     "Print Error: 03." ++ (Debug.toString (ls, kind))
@@ -930,10 +930,10 @@ valueToExpr v =
         VNil id ->
             case id of
                 0 ->
-                    ENil defaultWS
+                    ENil ([], eoElm)
 
                 1 ->
-                    ENil defaultWS
+                    ENil ([], esElm)
                 
                 _ ->
                     EError "VNil Error"
@@ -986,7 +986,7 @@ valueToExpr v =
                 e3 =
                     valueToExpr v3 |> addQuoOrSquareForList 
             in
-                ETTuple defaultWS e1 e2 e3
+                ETTuple (["", "", "", " "], defaultId) e1 e2 e3
         
         VNode n v1 v2 ->
             let
@@ -1751,6 +1751,26 @@ getVConsId v =
         _ -> -1
 
 
+getEConsId : Expr -> Int
+getEConsId e =
+    case e of
+        ENil (_, id) -> id
+
+        ECons (_, id) _ _ -> id
+
+        _ -> -1
+
+
+getWs : Expr -> WS
+getWs e =
+    case e of
+        ENil ws -> ws
+
+        ECons ws _ _ -> ws
+
+        _ -> defaultWS
+
+
 listToVCons : List Value -> Int -> Value
 listToVCons lst id = 
     case lst of
@@ -1946,3 +1966,11 @@ alignTpWs oldn newn ws =
                 ([ws1, _, ws3], id) -> ([ws1, ws3], id)
                 _ -> ws -- error branch
         _ -> ws
+
+
+mergeFunc : Expr -> Expr -> Expr -> Expr
+mergeFunc f1 f2 f =
+    if f1 /= f then
+        f1
+    else 
+        f2
