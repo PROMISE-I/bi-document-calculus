@@ -6,13 +6,11 @@ let foods = [
 {*
     <h1>Nested Loop</h1>
     {% for (desc, items) in foods %}
-        <div class="nested-loop">
         <p><b>{{desc}}</b></p>
         <ol>
         {% for item in items %}
             <li>{{item}}</li>
         {% endfor %}
         </ol>
-        </div>
     {% endfor %}  
 *}
