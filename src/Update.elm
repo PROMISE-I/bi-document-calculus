@@ -58,7 +58,9 @@ updateCode model =
             -- _ = Debug.log "upRes.expr" <| Debug.toString upRes.expr
             -- _ = Debug.log "expr_" <| Debug.toString expr_
             -- _ = Debug.log "resugaredCode" <| Debug.toString resugaredCode
-            -- _ = Debug.log "diffs" <| Debug.toString diffs
+            -- _ = Debug.log "oldv" <| oldv
+            -- _ = Debug.log "newv" <| newv
+            -- _ = Debug.log "diffs" <| diffs
 
         in 
             newCode
@@ -242,6 +244,8 @@ uneval venv expr newv diffs =
                                         v1Diffs = calcDiff v1 newv1
                                         
                                         res2 = uneval venv e1 newv1 v1Diffs
+
+                                        _ = Debug.log "eapp fix res2.venv" res2.venv
                                     in
                                     case res2.expr of
                                         EError info ->
@@ -257,12 +261,12 @@ uneval venv expr newv diffs =
                                                         
                                                         res3 = uneval venv (EFix defaultWS e2) newv2 []
                                                     in
-                                                        { venv = venv
+                                                        { venv = res2.venv
                                                         , expr = EApp ws res2.expr res3.expr
                                                         }
 
                                                 Just (_, VFix e21) ->
-                                                        { venv = venv
+                                                        { venv = res2.venv
                                                         , expr = EApp ws res2.expr (EFix defaultWS e21)
                                                         }
                                                 
@@ -662,13 +666,13 @@ uneval venv expr newv diffs =
                             mergeVEnv res1.venv res2.venv venv
 
                         -- _ = Debug.log "v1Diffs" <| v1Diffs
-                        -- _ = Debug.log "v2Diffs" <| v2Diffs
+                        _ = Debug.log "v2Diffs" <| v2Diffs
                         -- _ = Debug.log "v1" <| v1
-                        -- _ = Debug.log "v2" <| v2
+                        _ = Debug.log "v2" <| v2
                         -- _ = Debug.log "e1" <| e1
                         -- _ = Debug.log "e2" <| e2
                         -- _ = Debug.log "newv1" <| newv1
-                        -- _ = Debug.log "newv2" <| newv2
+                        _ = Debug.log "newv2" <| newv2
                         -- _ = Debug.log "newe1" <| res1.expr
                         -- _ = Debug.log "newe2" <| res2.expr
 
@@ -753,10 +757,16 @@ uneval venv expr newv diffs =
         EFix ws e ->
             let
                 res = uneval venv (EApp defaultWS e (EFix defaultWS e)) newv diffs
+                _ = Debug.log "res" res
 
                 e_ =
                     case res.expr of
                         EApp _ e1 (EFix _ e2) ->
+                            let
+                                _ = Debug.log "fix-e1" e1
+                                _ = Debug.log "fix-e2" e2
+                            in
+                            
                             if e2 /= e then e2 else e1
                         _ ->
                             EError "Fix Update Error."
@@ -1555,6 +1565,7 @@ flattenWalk xssValue diffs headOrPreviousInputValue =
                 all_keep = isAllKeep xsDiffs
                 all_insert = isAllInsert xsDiffs
 
+                -- _ = Debug.log "flatten-walk-xsvalue" <| xsValue
                 -- _ = Debug.log "flatten-walk-vcons-1" <| Debug.toString (xsDiffs, tssDiffs)
                 -- _ = Debug.log "flatten-walk-vcons-2" <| Debug.toString (all_delete, all_keep, all_insert)
 
