@@ -793,8 +793,8 @@ updateElmInVenv s v venv =
             else
                 (s1, v1) :: (updateElmInVenv s v vv)
 
-
-mergeVEnv : VEnv -> VEnv -> VEnv -> VEnv
+-- TODO: value merge, recursively traverses the subvalues of the three structurally equivalent values, until the rule for base cases.
+mergeVEnv : VEnv -> VEnv -> VEnv -> VEnv 
 mergeVEnv venv1 venv2 venv3 =
 
     case (venv1, venv2, venv3) of
@@ -802,9 +802,7 @@ mergeVEnv venv1 venv2 venv3 =
         ((s1, v1)::env1, (s2, v2)::env2, (_, v3)::env3) ->
             case (v1, v3) of
                 (VClosure _ b1 _, VFix (ELam _ _ (ELam _ _ b2))) ->
-                    if (b1 /= b2) 
-                    then (s1, v1) :: mergeVEnv env1 env2 env3
-                    else (s2, v2) :: mergeVEnv env1 env2 env3
+                    (s1, v1) :: mergeVEnv env1 env2 env3
 
                 _ ->
                     if (v1 /= v3) 
@@ -1251,7 +1249,7 @@ printChilds childs =
                         str2
 
                 _ ->
-                    "Child Type Error."
+                    "Child Type Error." ++ (print c)
         
         _ ->
             "Print Childs Error."
@@ -1968,6 +1966,7 @@ alignTpWs oldn newn ws =
         _ -> ws
 
 
+-- TODO: value merge, recursively traverses the subvalues of the three structurally equivalent values, until the rule for base cases.
 mergeFunc : Expr -> Expr -> Expr -> Expr
 mergeFunc f1 f2 f =
     if f1 /= f then
