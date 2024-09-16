@@ -16,7 +16,7 @@ mSpaces =
 
 isWhiteSpace : Char -> Bool
 isWhiteSpace c =
-    c == ' ' || c == '\n' || c == '\r'
+    c == ' ' || c == '\n' || c == '\r' || c == '\t'
 
 
 parse : String -> Result (List DeadEnd) Expr
@@ -598,13 +598,13 @@ tplNodeAttrsHelp revAttrs =
 
 tplNodeAttr : Parser Expr
 tplNodeAttr = 
-    -- <n><s1>=<s2><v>
-    succeed (\n s1 s2 v -> 
+    -- <n><s1>=<s2><e>
+    succeed (\n s1 s2 e -> 
                 let
                     (v1, s3) = 
-                        case v of
-                            ECons ([ws], eid) _ _ -> (changeWs ([""], eid) v, ws)
-                            _ -> (v, "")
+                        case e of
+                            ECons ([ws], eid) _ _ -> (changeWs ([""], eid) e, ws)
+                            _ -> (e, "")
                 in
                     EBTuple 
                         ([s1, s2, s3], defaultId) 
@@ -615,7 +615,7 @@ tplNodeAttr =
         |= mSpaces
         |. symbol "="
         |= mSpaces
-        |= string
+        |= aexpr
 
 
 tplExpr : TplCtx -> Parser TplPart
