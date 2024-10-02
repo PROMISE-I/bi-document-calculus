@@ -139,6 +139,8 @@ type ExprChilds
     | ECChar  
     | ECCons ExprNode ExprNode 
     | ECNil  
+    | ECDictDef ECDictPairs
+    | ECDictUpd ExprNode ECDictPairs
     | ECBPrim ExprNode ExprNode
     | ECUPrim ExprNode
     | ECCase ExprNode ExprNode
@@ -148,6 +150,10 @@ type ExprChilds
     | ECNode ExprNode ExprNode
     | ECToStr ExprNode
     | ECError
+
+type ECDictPairs 
+    = ECNothing
+    | ECDictPair ExprNode ECDictPairs
 
 
 type Expr
@@ -164,6 +170,8 @@ type Expr
     | EChar WS Char
     | ECons WS Expr Expr
     | ENil WS
+    | EDictDef WS EDictPairs
+    | EDictUpd WS Expr EDictPairs 
     | EBPrim WS Bop Expr Expr
     | EUPrim WS Uop Expr
     | ECase WS Expr Branch
@@ -202,6 +210,10 @@ type TplPart
 type Bop = Add | Sub | Mul | Div | Eq | Lt | Gt | Le | Ge | And | Or | Cat | DDiv
 type Uop = Not | Neg
 
+type EDictPairs 
+    = ENothing
+    | EDictPair WS String Expr EDictPairs
+
 type Branch
     = BSin WS Pattern Expr
     | BNSin WS Int Pattern Expr
@@ -215,12 +227,17 @@ type Value
     | VChar Char
     | VCons Int Value Value
     | VNil Int
+    | VDict VDictPairs
     | VFix Expr
     | VClosure Pattern Expr VEnv
     | VBTuple Value Value
     | VTTuple Value Value Value 
     | VNode String Value Value
     | VError Info
+
+type VDictPairs 
+    = VNothing
+    | VDictPair String Value VDictPairs
 
 type alias VEnv = List (String, Value)
 
