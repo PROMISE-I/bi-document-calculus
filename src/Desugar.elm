@@ -77,6 +77,19 @@ desugar expr =
 
         ENil ws -> ENil ws
 
+        EDictDef ws dictPairs ->
+            let
+                dePairs = desugarDictPairs dictPairs
+            in
+                EDictDef ws dePairs
+
+        EDictUpd ws d dictPairs ->
+            let
+                de1 = desugar d
+                de2 = desugarDictPairs dictPairs
+            in
+                EDictUpd ws de1 de2
+
         EUPrim ws op e -> 
             let
                 de = desugar e
@@ -200,10 +213,14 @@ desugarTemplate t =
 
                 TplExpr tpWS e -> 
                     -- make unique identification for resugar
+                    let
+                        desugaredE = desugar e
+                    in
+                    
                     EApp 
                         tpWS
                         lamTplExpr       
-                        (ECons defaultWS e desugaredRestTemplate) -- TODO: 忘记 deusgar e 了
+                        (ECons defaultWS desugaredE desugaredRestTemplate) -- TODO: 忘记 deusgar e 了
 
                 TplSet tpWS p e -> 
                     -- make unique identification for resugar
@@ -292,3 +309,15 @@ desugarTemplate t =
 
 
         TNil _ -> ENil defaultWS
+
+
+desugarDictPairs : EDictPairs -> EDictPairs
+desugarDictPairs dictPairs =
+    case dictPairs of
+        ENothing -> ENothing
+        EDictPair ws name ve restPairs ->
+            let
+                de = desugar ve
+                dePairs = desugarDictPairs restPairs
+            in
+                EDictPair ws name de dePairs
