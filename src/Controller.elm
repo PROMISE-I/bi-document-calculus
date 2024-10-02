@@ -18,6 +18,7 @@ evalCodeToModel code =
         case parseResult of
             Result.Ok e ->
                 let 
+                    -- proprocess -- TODO: Check the uniqueness of Dict Key
                     desugaredExpr = desugarWithPreclude e
                     e_ = processAfterParse desugaredExpr []
                     resN = eval [] e_
@@ -31,6 +32,9 @@ evalCodeToModel code =
                                 (print res, HTML)
                             _ ->
                                 (print res, Console)
+
+                    -- _ = Debug.log "EvalCodeToModel-Res" res
+                    -- _ = Debug.log "EvalCodeToModel-Output" output
                     
                     -- lst1 = "kitten" |> String.toList
                     -- lst2 = "sitting" |> String.toList
