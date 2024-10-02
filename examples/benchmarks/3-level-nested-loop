@@ -1,0 +1,20 @@
+let foods = [
+    [["Water", "Juice", "Soda"], ["Tea", "Coffee", "Milk"], ["Beer", "Wine", "Cocktail"]], 
+    [["Rice", "Corn", "Potato"] , ["Bread", "Pasta", "Millet"], ["Rye", "Oats", "Barely"]],
+    [["Cake", "Cookie", "Ice Cream"], ["Chocolate", "Pie", "Tart"], ["Cupcake", "Brownie", "Donut"]]
+] in
+{*
+    <h1>3-Level Nested Loop</h1>
+    {% for itemss in foods %}
+        <p><b>level-1</b></p>
+        {% for items in itemss %}
+            <p><b>level-2</b></p>
+            <ol>
+            {% for item in items %}
+            <li>{{item}}</li>
+            {% endfor %}
+            </ol>
+        {% endfor %}
+        <br>
+    {% endfor %}  
+*}

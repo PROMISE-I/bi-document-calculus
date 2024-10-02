@@ -1,0 +1,55 @@
+let languages = [
+    ["EOL", "Epsilon Object Language", "-"],
+    ["EVL", "Epsilon Validation Language", "EOL"],
+    ["ETL", "Epsilon Transformation Language", "ETL"],
+    ["EML", "Epsilon Merging Language", "ETL"],
+    ["ECL", "Epsilon Comparison Language", "EOL"],
+    ["EPL", "Epsilon Pattern Language", "EOL"],
+    ["EMG", "Epsilon Model Generation Language", "EPL"],
+    ["EGL", "Epsilon Generation Language", "EOL"],
+    ["EGX", "Epsilon Generation Coordination Language", "EOL"],
+    ["Pinset", "-", "EOL"],
+    ["Flock", "-", "EOL"],
+    ["Flexmi", "-", "-"],
+    ["Emfatic", "-", "-"]
+] in
+letrec ith =
+    \xs => 
+        \i =>
+            case xs of
+                [] => "error"
+                | h :: t =>     
+                    case i of
+                        0 => h
+                        | x => ith t (i-1)
+in
+let getTitle =
+    \language =>
+        (ith language 1) + "(" + (ith language 0) + ")"
+in
+let getExtension =
+    \language =>
+        ith language 0
+in
+let getExtends =
+    \language =>
+        ith language 2
+in
+{*
+<table class="table table-striped">
+    <tbody>
+    <tr>
+        <th>Name</th>
+        <th>File extension</th>
+        <th>Extends</th>
+    </tr>
+    {% for language in languages %}
+    <tr>
+        <td>{{getTitle language}}</td>
+        <td>.{{getExtension language}}</td>
+        <td>{{getExtends language}}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+*}

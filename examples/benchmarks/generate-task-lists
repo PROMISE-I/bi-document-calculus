@@ -1,0 +1,59 @@
+let persons = ["Alice", "Bob"] in
+let tasks = [
+    ["Analysis", ["Alice"]],
+    ["Design", ["Bob"]],
+    ["Implementation", ["Bob", "Alice"]]
+] in
+letrec streq =
+    \s1 =>
+        \s2 =>
+            case (s1, s2) of
+                ([], []) => true
+                | (c1::s11, c2::s22) => (c1 == c2) && (streq s11 s22)
+in
+letrec ith =
+    \xs => 
+        \i =>
+            case xs of
+                [] => "error"
+                | h :: t =>     
+                    case i of
+                        0 => h
+                        | x => ith t (i-1)
+in
+letrec isIn =
+    \ps => 
+        \p =>
+            case ps of
+                [] => false
+                | h :: t => 
+                    (streq h p) || (isIn t p)
+in
+letrec getTasks =
+    \tasks =>
+        \p =>
+            case tasks of
+                [] => []
+                | t :: ts =>
+                    let task = ith t 0 in
+                    let ps = ith t 1 in
+                    if (isIn ps p) then 
+                        t :: (getTasks ts p)
+                    else 
+                        getTasks ts p
+in
+{*
+
+{% for p in persons %}
+    <h1>{{p}}'s Tasks</h1>
+
+    <table>
+    {% for task in (getTasks tasks p) %}
+        <tr>
+            <td>{{task}}</td>
+        </tr>
+    {% endfor %}
+    </table>
+{% endfor %}
+
+*}
