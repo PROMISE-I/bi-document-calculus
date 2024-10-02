@@ -45,3 +45,13 @@ This is a direct manipulating programming system for article template programs.
 
 ## Develop
 - elm make src/Main.elm --output=./build/elm.js
+
+## TODO
+- dict support
+- positive int be recognized before neg
+- eq string forward and backward
+- foreachTpl index support
+- node different -> wrap a tag 
+- html render page in right
+- friendly error msg
+- slow when large text encounter
