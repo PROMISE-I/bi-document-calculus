@@ -83,7 +83,7 @@ eval venv expr =
                                                 (ECApp en1 en2 en3, expr, { value = v3 })
                                             
 
-                    _ -> (ECError, expr, { value = VError "Function Error: 01" }) 
+                    _ -> (ECError, expr, { value = VError <| "Function Error: 01\\r" ++ Debug.toString v1 }) 
 
 
         EInt _ n ->
@@ -194,6 +194,22 @@ eval venv expr =
                         VNil 0
             in
                 (ECNil, expr, { value = v })
+
+        
+        EDictDef _ dictPairs -> 
+            let
+                (ecDictPairs, vDictPairs) = evalDictPairs venv dictPairs
+                v = VDict vDictPairs
+            in
+                (ECDictDef ecDictPairs, expr, { value = v })
+        
+        EDictUpd _ originDict dictPairs ->
+            let
+                ecOriginDict = eval venv originDict
+                (ecDictPairs, vDictPairs) = evalDictPairs venv dictPairs
+                v = dictUpdates (getValueFromExprNode ecOriginDict) vDictPairs
+            in
+                (ECDictUpd ecOriginDict ecDictPairs, expr, { value = v })
 
 
         EUPrim _ op e ->
@@ -320,7 +336,7 @@ eval venv expr =
                                     VError "Operand Error: 09"
 
                         _ ->
-                            VError "Operand Error: 05"
+                            VError ("Operand Error: 05" ++ print v1)
             in
                 (ECBPrim en1 en2, expr, { value = v })
 
@@ -387,7 +403,7 @@ eval venv expr =
 
         _ ->
             let
-                v = VError "Something Wrong!"
+                v = VError ("Something Wrong!" ++ Debug.toString expr)
             in
                 (ECError, expr, { value = v })
             
@@ -442,3 +458,36 @@ listOp id1 id2 op v1 v2 =
         -- Eq -> 
 
         _ -> VError ("Operand Error: 06" ++ Debug.toString op)
+
+evalDictPairs : VEnv -> EDictPairs -> (ECDictPairs, VDictPairs)
+evalDictPairs venv ed = 
+    case ed of
+        ENothing -> (ECNothing, VNothing)
+        EDictPair _ name expr pairs -> 
+            let
+                enExpr = eval venv expr
+                (ecRestPairs, vRestPairs) = evalDictPairs venv pairs
+                vPairs = VDictPair name (getValueFromExprNode enExpr) vRestPairs
+            in
+                (ECDictPair enExpr ecRestPairs, vPairs)
+
+dictUpdate : (String, Value) -> VDictPairs -> VDictPairs
+dictUpdate (n, newv) ps = 
+    case ps of
+        VNothing -> VDictPair n newv VNothing
+        VDictPair oldn oldv restPs ->
+            if oldn == n then
+                VDictPair oldn newv restPs
+            else 
+                VDictPair oldn oldv (dictUpdate (n, newv) restPs)
+
+dictUpdates : Value -> VDictPairs -> Value
+dictUpdates originDict updPairs =
+    case originDict of
+        VDict ps -> 
+            let 
+                vDictPairsList = vDictPairsToList updPairs
+            in
+                VDict (List.foldl dictUpdate ps vDictPairsList)
+        
+        _ -> VError "Error when update non dict value."
