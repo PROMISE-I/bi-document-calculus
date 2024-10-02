@@ -343,6 +343,9 @@ aexpr =
     , caseOf
     , backtrackable nil
     , list
+    , backtrackable dictEmpty
+    , backtrackable dictDef
+    , backtrackable dictUpd
     , string
     , char
     , strTpl
@@ -405,6 +408,73 @@ listHelper  revExprs =
         |= lazy (\_ -> expr)
     , succeed ()
         |> map (\_ -> Done (List.reverse revExprs))
+    ]
+
+dictEmpty : Parser Expr
+dictEmpty =
+    succeed (\s1 s2 -> (EDictDef ([s1, s2], 0) ENothing))
+        |. symbol "{"
+        |= mSpaces
+        |. symbol "}"
+        |= mSpaces
+
+dictDef : Parser Expr
+dictDef = 
+    succeed (
+        \s1 name s2 s3 e dpsLst s4 -> 
+            let
+                dps = dictPairsListToEDictPairs (((["", s2, s3], 0), name, e) :: dpsLst)
+            in
+                EDictDef ([s1, s4], 0) dps
+    )
+        |. symbol "{"
+        |= mSpaces 
+        |= varName
+        |= mSpaces 
+        |. symbol "="
+        |= mSpaces
+        |= expr
+        |= dictPairs
+        |. symbol "}"
+        |= mSpaces
+
+
+dictUpd : Parser Expr
+dictUpd =
+    succeed (
+        \s1 originDict s2 dpsLst s3 ->
+            let
+                dps = dictPairsListToEDictPairs dpsLst
+            in
+                EDictUpd ([s1, s2, s3], 0) originDict dps
+    )
+        |. symbol "{"
+        |= mSpaces 
+        |= expr
+        |. symbol "|"
+        |= mSpaces
+        |= dictPairs
+        |. symbol "}"
+        |= mSpaces
+
+dictPairs : Parser (List (WS, String, Expr))
+dictPairs =
+    loop [] dictPairsHelper
+
+
+dictPairsHelper : List (WS, String, Expr) -> Parser (Step (List (WS, String, Expr)) (List (WS, String, Expr)))
+dictPairsHelper revDictPairs =
+    oneOf
+    [ succeed (\s1 name s2 s3 e -> Loop ((([s1, s2, s3], 0), name, e) :: revDictPairs))
+        |. symbol ","
+        |= mSpaces
+        |= varName
+        |= mSpaces
+        |. symbol "="
+        |= mSpaces 
+        |= lazy (\_ -> expr)
+    , succeed ()
+        |> map (\_ -> Done (List.reverse revDictPairs))
     ]
 
 
@@ -1237,6 +1307,13 @@ stringToValue s =
         
         c::cs ->
             VCons vsId (VChar c) (stringToValue cs)
+
+dictPairsListToEDictPairs : List (WS, String, Expr) -> EDictPairs
+dictPairsListToEDictPairs lst =
+    case lst of
+        [] -> ENothing
+        (ws, name, vexpr) :: rest ->
+            EDictPair ws name vexpr (dictPairsListToEDictPairs rest)
 
 
 -- For Debug
