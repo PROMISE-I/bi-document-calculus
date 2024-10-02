@@ -363,7 +363,11 @@ printTplNodeAttr attrs =
                         ECons (_, 3) e1 e2 ->
                             let
                                 nWithoutQuo = ECons ([], esElm) e1 e2 
-                                vWithoutWs = changeWs ([""], esQuo) v
+                                vWithoutWs = 
+                                    case v of
+                                        ECons _ _ _ -> changeWs ([""], esQuo) v
+                                        ENil _ -> changeWs ([""], esQuo) v
+                                        _ -> v 
                             in
                                 (printAST nWithoutQuo) ++ ws1 ++ "=" ++ ws2 ++ (printAST vWithoutWs) ++ ws3 ++ 
                                 (printTplNodeAttr restAttrs)
@@ -802,6 +806,13 @@ mergeVEnv venv1 venv2 venv3 =
         ((s1, v1)::env1, (s2, v2)::env2, (_, v3)::env3) ->
             case (v1, v3) of
                 (VClosure _ b1 _, VFix (ELam _ _ (ELam _ _ b2))) ->
+                    -- let
+                    --     _ = Debug.log "merge v1" v1
+                    --     _ = Debug.log "merge v2" v2
+                    --     _ = Debug.log "merge v3" v3
+                    --     _ = Debug.log "merge venv3" venv3
+                    -- in
+                    
                     (s1, v1) :: mergeVEnv env1 env2 env3
 
                 _ ->
@@ -1252,7 +1263,7 @@ printChilds childs =
                     "Child Type Error." ++ (print c)
         
         _ ->
-            "Print Childs Error."
+            "Print Childs Error." ++ Debug.toString childs
 
 appendName : String
 appendName = "append"
