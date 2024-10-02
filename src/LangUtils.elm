@@ -564,6 +564,20 @@ processAfterParse expr env =
                 e2_ = processAfterParse e2 env
             in
                 ECons ws e1_ e2_
+        
+        EDictDef ws dictPairs ->
+            let
+                dictPairs_ = processAfterParseDictPairs dictPairs env
+            in
+                EDictDef ws dictPairs_
+
+        EDictUpd ws e dictPairs ->
+            let
+                e_ = processAfterParse e env
+                dictPairs_ = processAfterParseDictPairs dictPairs env
+            in
+                EDictUpd ws e_ dictPairs_     
+
 
         EBPrim ws op e1 e2 ->
             let 
@@ -635,6 +649,17 @@ processAfterParse expr env =
 
         _ -> expr
 
+
+processAfterParseDictPairs : EDictPairs -> List String -> EDictPairs
+processAfterParseDictPairs dictPairs env =
+    case dictPairs of 
+        ENothing -> ENothing
+        EDictPair ws n e restPairs ->
+            let 
+                e_ = processAfterParse e env
+                restPairs_ = processAfterParseDictPairs restPairs env
+            in
+                EDictPair ws n e_ restPairs_
 
 numberBranches : Branch -> List String -> Int -> (Branch, Int)
 numberBranches b env n =
@@ -760,7 +785,15 @@ print v  =
                 str3 = print v3
             in
             "( "++str1++", "++str2++", "++str3++" )"
+        
         VNode s v1 v2 -> printNode s v1 v2
+
+        VDict vdictPairs -> 
+            let
+                str1 = printDictPairs vdictPairs
+            in
+                "{ " ++ str1 ++ "}"
+
 
 printList : Value -> Value -> String
 printList v vs =
@@ -784,6 +817,18 @@ printString v =
 
         _ ->
             "Print Value Error: 03."
+
+printDictPairs : VDictPairs -> String
+printDictPairs ps =
+    case ps of
+        VNothing -> 
+            ""
+        
+        VDictPair n v VNothing -> 
+            n ++ "=" ++ (print v) ++ " "
+
+        VDictPair n v restps ->
+            n ++ "=" ++ (print v) ++ ", " ++ (printDictPairs restps)    
 
 
 updateElmInVenv : String -> Value -> VEnv -> VEnv
@@ -2043,3 +2088,10 @@ isAllInsert diffs =
                 DiffInsert _ -> True
                 _ -> False)
         diffs
+
+vDictPairsToList : VDictPairs -> List (String, Value)
+vDictPairsToList vDictPairs =
+    case vDictPairs of
+        VNothing -> []
+        VDictPair n v restPairs ->
+            (n, v)::(vDictPairsToList restPairs)
