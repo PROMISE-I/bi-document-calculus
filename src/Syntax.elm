@@ -85,7 +85,7 @@ treeTplName : String
 treeTplName = "$treeTpl$"
 
 specialNodeNameStr : List String
-specialNodeNameStr = ["br"]
+specialNodeNameStr = ["br", "input", "meta", "link"]
 
 pPreclude : Pattern
 pPreclude = PVar defaultWS precludeName
