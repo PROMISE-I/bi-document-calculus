@@ -2100,3 +2100,41 @@ vDictPairsToList vDictPairs =
         VNothing -> []
         VDictPair n v restPairs ->
             (n, v)::(vDictPairsToList restPairs)
+
+
+vDictUpdate : (String, Value) -> VDictPairs -> VDictPairs
+vDictUpdate (n, newv) ps = 
+    case ps of
+        VNothing -> VDictPair n newv VNothing
+        VDictPair oldn oldv restPs ->
+            if oldn == n then
+                VDictPair oldn newv restPs
+            else 
+                VDictPair oldn oldv (vDictUpdate (n, newv) restPs)
+
+vDictUpdates : Value -> VDictPairs -> Value
+vDictUpdates originDict updPairs =
+    case originDict of
+        VDict ps -> 
+            let 
+                vDictPairsList = vDictPairsToList updPairs
+            in
+                VDict (List.foldl vDictUpdate ps vDictPairsList)
+        
+        _ -> VError "Error when update non dict value."
+
+fieldAccess : Value -> String -> Value
+fieldAccess vd fstr =
+    case vd of
+        VDict vdictPairs -> findValueInDictPairs vdictPairs fstr
+        _ -> VError "Error when access non dict value"
+
+findValueInDictPairs : VDictPairs -> String -> Value
+findValueInDictPairs dps n =
+    case dps of
+        VNothing -> VError <| "Error when access non exist key: " ++ n
+        VDictPair key val next ->
+            if key == n then
+                val
+            else 
+                findValueInDictPairs next n 

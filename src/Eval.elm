@@ -207,7 +207,7 @@ eval venv expr =
             let
                 enOriginDict = eval venv originDict
                 (ecDictPairs, vDictPairs) = evalDictPairs venv dictPairs
-                v = dictUpdates (getValueFromExprNode enOriginDict) vDictPairs
+                v = vDictUpdates (getValueFromExprNode enOriginDict) vDictPairs
             in
                 (ECDictUpd enOriginDict ecDictPairs, expr, { value = v })
 
@@ -478,39 +478,3 @@ evalDictPairs venv ed =
             in
                 (ECDictPair enExpr ecRestPairs, vPairs)
 
-dictUpdate : (String, Value) -> VDictPairs -> VDictPairs
-dictUpdate (n, newv) ps = 
-    case ps of
-        VNothing -> VDictPair n newv VNothing
-        VDictPair oldn oldv restPs ->
-            if oldn == n then
-                VDictPair oldn newv restPs
-            else 
-                VDictPair oldn oldv (dictUpdate (n, newv) restPs)
-
-dictUpdates : Value -> VDictPairs -> Value
-dictUpdates originDict updPairs =
-    case originDict of
-        VDict ps -> 
-            let 
-                vDictPairsList = vDictPairsToList updPairs
-            in
-                VDict (List.foldl dictUpdate ps vDictPairsList)
-        
-        _ -> VError "Error when update non dict value."
-
-fieldAccess : Value -> String -> Value
-fieldAccess vd fstr =
-    case vd of
-        VDict vdictPairs -> findValueInDictPairs vdictPairs fstr
-        _ -> VError "Error when access non dict value"
-
-findValueInDictPairs : VDictPairs -> String -> Value
-findValueInDictPairs dps n =
-    case dps of
-        VNothing -> VError <| "Error when access non exist key: " ++ n
-        VDictPair key val next ->
-            if key == n then
-                val
-            else 
-                findValueInDictPairs next n 
