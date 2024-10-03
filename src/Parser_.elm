@@ -367,6 +367,11 @@ term =
         succeed (foldl1 (EApp defaultWS))
             |=  some (lazy <| \_ -> aexpr)
 
+fieldAccessParser : Parser (Expr -> Expr)
+fieldAccessParser =
+    succeed (\n e -> EField defaultWS e n)
+        |. symbol "."
+        |= varName
 
 bopParser : String -> Bop -> Parser (Expr -> Expr -> Expr)
 bopParser s op =
@@ -930,6 +935,8 @@ operators =
     , [Infix (bopParser "==" Eq) AssocNone]
     , [Infix (bopParser "&&" And) AssocLeft]
     , [Infix (bopParser "||" Or) AssocLeft]
+
+    , [Postfix fieldAccessParser]
     ]
 
 
