@@ -370,9 +370,10 @@ term =
 
 fieldAccessParser : Parser (Expr -> Expr)
 fieldAccessParser =
-    succeed (\n e -> EField defaultWS e n)
+    succeed (\n s e -> EField ([s], 0) e n)
         |. symbol "."
         |= varName
+        |= mSpaces
 
 bopParser : String -> Bop -> Parser (Expr -> Expr -> Expr)
 bopParser s op =
