@@ -14,6 +14,7 @@ outputArea.addEventListener("DOMSubtreeModified", function(evt) {
     var newOutput = outputArea.innerHTML;
     if (newOutput !== "" && newOutput !== output){
         app.ports.receiveOutput.send(outputArea.innerHTML);
+        output = newOutput
     }
 }, false);
 
