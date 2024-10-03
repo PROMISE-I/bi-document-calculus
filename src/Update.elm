@@ -9,6 +9,7 @@ import HtmlParser exposing (parseHtml)
 import Parser_ exposing (parse, parseVal)
 import Desugar exposing (..)
 import Resugar exposing (..)
+import Html exposing (th)
 
 
 updateCode : Model -> Code
@@ -53,6 +54,7 @@ updateCode model =
 
             newCode = printAST resugaredCode
 
+            -- _ = Debug.log "Update-expr" expr
             -- _ = Debug.log "pCode" <| Debug.toString pCode
             -- _ = Debug.log "pOutput" <| Debug.toString pOutput
             -- _ = Debug.log "upRes.expr" <| Debug.toString upRes.expr
@@ -80,6 +82,11 @@ uneval venv expr newv diffs =
                     }
                 
                 _ ->
+                    -- let _ = Debug.log "evar s" s
+                    --     _ = Debug.log "evar newv" newv 
+                    --     _ = Debug.log "evar venv" venv
+                    --     _ = Debug.log "evar updated venv" (updateElmInVenv s newv venv)
+                    -- in
                     { venv = updateElmInVenv s newv venv
                     , expr = expr
                     }
@@ -245,7 +252,11 @@ uneval venv expr newv diffs =
                                         
                                         res2 = uneval venv e1 newv1 v1Diffs
 
-                                        _ = Debug.log "eapp fix res2.venv" res2.venv
+                                        -- _ = Debug.log "eapp fix s" s
+                                        -- _ = Debug.log "eapp fix e1" e1
+                                        -- _ = Debug.log "eapp fix venv" venv
+                                        -- _ = Debug.log "eapp fix fix closure" (head res1_venv) 
+                                        -- _ = Debug.log "eapp fix res2.venv" res2.venv
                                     in
                                     case res2.expr of
                                         EError info ->
@@ -260,8 +271,10 @@ uneval venv expr newv diffs =
                                                         newv2 = VClosure np ne nvenv
                                                         
                                                         res3 = uneval venv (EFix defaultWS e2) newv2 []
+                                                        -- _ = Debug.log "eapp fix newv2" newv2 
+                                                        -- _ = Debug.log "eapp fix res3" res3.expr
                                                     in
-                                                        { venv = res2.venv
+                                                        { venv = res2.venv -- TODO: res2.venv merge res3.venv
                                                         , expr = EApp ws res2.expr res3.expr
                                                         }
 
@@ -387,12 +400,12 @@ uneval venv expr newv diffs =
                                             
                                             res3 = uneval venv e2 newv2 v2Diffs
 
-                                            -- _ = Debug.log "uneval-patternsubst-e1" <| Debug.toString e1
-                                            -- _ = Debug.log "uneval-patternsubst-e2" <| Debug.toString e2
-                                            -- _ = Debug.log "uneval-patternsubst-ef" <| Debug.toString ef
-                                            -- _ = Debug.log "uneval-patternsubst-newv" <| Debug.toString newv
-                                            -- _ = Debug.log "uneval-patternsubst-res1" <| Debug.toString res1
-                                            -- _ = Debug.log "uneval-patternsubst-venvm" <| Debug.toString venvm
+                                            _ = Debug.log "uneval-patternsubst-e1" <| Debug.toString e1
+                                            _ = Debug.log "uneval-patternsubst-e2" <| Debug.toString e2
+                                            _ = Debug.log "uneval-patternsubst-ef" <| Debug.toString ef
+                                            _ = Debug.log "uneval-patternsubst-newv" <| Debug.toString newv
+                                            _ = Debug.log "uneval-patternsubst-res1" <| Debug.toString res1
+                                            _ = Debug.log "uneval-patternsubst-venvm" <| Debug.toString venvm
 
 
                                         in
@@ -406,6 +419,13 @@ uneval venv expr newv diffs =
                                                 let
                                                     newvenv =
                                                         mergeVEnv res2.venv res3.venv venv
+
+                                                    -- _ = Debug.log "eapp e1" e1
+                                                    -- _ = Debug.log "eapp e2" e2
+                                                    -- _ = Debug.log "eapp newv" newv
+                                                    -- _ = Debug.log "eapp res2.venv" res2.venv
+                                                    -- _ = Debug.log "eapp res3.venv" res3.venv
+
 
                                                 in
                                                     { venv = newvenv
@@ -575,6 +595,44 @@ uneval venv expr newv diffs =
                             { venv = []
                             , expr = EError "Cons Update Error: 03"}
 
+        EDictDef ws dictPairs -> 
+            case newv of
+                VDict newVPairs ->
+                    let
+                        (newvenv, remv, newDictPairs) = eDictUpdates True venv newVPairs dictPairs
+                    in
+                        case remv of
+                            VNothing -> 
+                                { venv = newvenv
+                                , expr = EDictDef ws newDictPairs }
+                            _ -> 
+                                { venv = []
+                                , expr = EError <| "Implementing Error: 00." 
+                                }
+                
+                _ -> 
+                    { venv = [] 
+                    , expr = EError <| "Non Dict Value cannot update Dict def Expr Error: 17." 
+                    }
+
+        EDictUpd ws originDict eUpdPairs -> 
+            case newv of
+                VDict newVPairs ->
+                    let 
+                        (venv1, remVPairs1, newEUpdPairs) = eDictUpdates False venv newVPairs eUpdPairs
+                        res1 = uneval venv originDict (VDict remVPairs1) []
+
+                        newvenv = mergeVEnv res1.venv venv1 venv
+                    in
+                        { venv = newvenv
+                        , expr = EDictUpd ws res1.expr newEUpdPairs 
+                        }
+
+                _ -> 
+                    { venv = [] 
+                    , expr = EError <| "Non Dict Value cannot update Dict Upd Expr Error: 18." 
+                    }
+
 
         EBTuple ws e1 e2 ->
             let
@@ -666,13 +724,13 @@ uneval venv expr newv diffs =
                             mergeVEnv res1.venv res2.venv venv
 
                         -- _ = Debug.log "v1Diffs" <| v1Diffs
-                        _ = Debug.log "v2Diffs" <| v2Diffs
+                        -- _ = Debug.log "v2Diffs" <| v2Diffs
                         -- _ = Debug.log "v1" <| v1
-                        _ = Debug.log "v2" <| v2
+                        -- _ = Debug.log "v2" <| v2
                         -- _ = Debug.log "e1" <| e1
                         -- _ = Debug.log "e2" <| e2
                         -- _ = Debug.log "newv1" <| newv1
-                        _ = Debug.log "newv2" <| newv2
+                        -- _ = Debug.log "newv2" <| newv2
                         -- _ = Debug.log "newe1" <| res1.expr
                         -- _ = Debug.log "newe2" <| res2.expr
 
@@ -706,7 +764,7 @@ uneval venv expr newv diffs =
                 -- TODO: separate list nil from string nil
                 VNil vId ->
                     { venv = venv
-                    , expr = ENil (pads, vIdToEId vId eId)
+                    , expr = ENil (pads, eId)
                     }
                 
                 VCons vId _ _ ->
@@ -757,15 +815,20 @@ uneval venv expr newv diffs =
         EFix ws e ->
             let
                 res = uneval venv (EApp defaultWS e (EFix defaultWS e)) newv diffs
-                _ = Debug.log "res" res
+                
+                -- _ = Debug.log "fix-res" res
+                -- _ = Debug.log "fix-newv" newv
 
                 e_ =
                     case res.expr of
                         EApp _ e1 (EFix _ e2) ->
-                            let
-                                _ = Debug.log "fix-e1" e1
-                                _ = Debug.log "fix-e2" e2
-                            in
+                            -- let
+                                -- _ = Debug.log "fix-e1" e1
+                                -- _ = Debug.log "fix-e2" e2
+                                -- _ = Debug.log "fix-e" e
+                                -- _ = Debug.log "fix-bool-1" (e2 /= e)
+                                -- _ = Debug.log "fix-bool-2" (not (e2 == e))
+                            -- in
                             
                             if e2 /= e then e2 else e1
                         _ ->
@@ -816,6 +879,10 @@ uneval venv expr newv diffs =
                                         |> patternSubst tryRes.venv 
 
                                 venv_ = updateElmInVenv s newv_ (drop len tryRes.venv)
+
+                                -- _ = Debug.log "case-newv" newv
+                                -- _ = Debug.log "case-tryRes.ei" tryRes.ei
+
                             in
                                 { venv = venv_
                                 , expr = ECase ws1 (EVar ws2 s) branches_
@@ -994,7 +1061,7 @@ uneval venv expr newv diffs =
                         
                         Result.Err _ ->
                             { venv = []
-                            , expr = EError "Cannot update toString because of wrong newv."
+                            , expr = EError ("Cannot update toString because of wrong newv." ++ (Debug.toString newv))
                             }
 
                 _ ->
@@ -1340,7 +1407,7 @@ comp ws e1 e2 venv newv op diffs =
 
         _ ->
             { venv = []
-            , expr = EError "Comparison Expression Modified Type Error: 03."
+            , expr = EError ("Comparison Expression Modified Type Error: 03." ++ (print newv))
             }
 
 
@@ -1379,6 +1446,43 @@ checkChange venv ws op e1 e2 v1 v2 newv1 newv2 v1Diffs v2Diffs =
             { venv = newvenv
             , expr = EBPrim ws op res1.expr res2.expr
             }
+
+
+eDictUpdate : Bool -> VEnv -> (String, Value) -> (VEnv, VDictPairs, EDictPairs) -> (VEnv, VDictPairs, EDictPairs)
+eDictUpdate isAppend oldVEnv (n, newv) (venv, rem, edp) = 
+    case edp of
+        ENothing -> 
+            if isAppend then
+                let
+                    newe = valueToExpr newv  
+                in
+                    (venv, rem, EDictPair ([" ", "", ""], 0) n newe ENothing)
+            else 
+                (venv, VDictPair n newv rem, edp)
+
+        EDictPair ws oldn olde restPs ->
+            if oldn == n then
+                let
+
+                    oldv = getValueFromExprNode (eval oldVEnv olde)
+                    diff = calcDiff oldv newv
+                    res1 = uneval oldVEnv olde newv diff
+
+                    newvenv = mergeVEnv venv res1.venv oldVEnv
+                in
+                    (newvenv, rem, EDictPair ws oldn res1.expr restPs)
+            else 
+                let
+                    (venv1, rem1, edp1) = eDictUpdate isAppend oldVEnv (n, newv) (venv, rem, restPs)
+                in
+                    (venv1, rem1, EDictPair ws oldn olde edp1)
+
+eDictUpdates : Bool -> VEnv -> VDictPairs -> EDictPairs -> (VEnv, VDictPairs, EDictPairs)
+eDictUpdates isAppend venv newVPairs oldEPairs =
+    let
+        newVPairsList = vDictPairsToList newVPairs
+    in
+        List.foldl (eDictUpdate isAppend venv) (venv, VNothing, oldEPairs) newVPairsList
 
 
 mapUneval : VEnv -> Expr -> Expr -> Value -> List (DiffOp Value) -> (VEnv, Expr, Expr)
