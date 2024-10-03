@@ -55,3 +55,5 @@ This is a direct manipulating programming system for article template programs.
 - html render page in right
 - friendly error msg
 - slow when large text encounter
+- dict field access without mSpaces
+- refactor all code using visitor pattern
