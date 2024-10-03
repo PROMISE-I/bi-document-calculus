@@ -119,6 +119,8 @@ printAST expr =
             "{" ++ ws1 ++ (printAST e) ++ 
             "|" ++ ws2 ++ (printEDictPairs True dps) ++
             "}" ++ ws3
+        EField ([ws], 0) e n ->
+            (printAST e) ++ "." ++ n ++ ws 
 
         EBPrim ([ws], _) op e1 e2 ->
             let
@@ -288,7 +290,7 @@ printEDictPairs isFirst dps =
             let
                 comma = if isFirst then "" else ","
             in
-                comma ++ ws1 ++ nStr ++ ws2 ++ "=" ++ ws3 ++ (printAST e) ++ ws3 ++ (printEDictPairs False rest)
+                comma ++ ws1 ++ nStr ++ ws2 ++ "=" ++ ws3 ++ (printAST e) ++ (printEDictPairs False rest)
         _ -> "Print Error: 17."
 
 
