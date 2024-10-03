@@ -1220,6 +1220,53 @@ vListHelper context revValues =
         |> map (\_ -> Done (List.reverse revValues))
     ]
 
+vDictEmpty : List Value -> Parser Value
+vDictEmpty context =
+    succeed (VDict VNothing)
+        |. symbol "{"
+        |. spaces
+        |. symbol "}"
+        |. spaces
+
+vDict : List Value -> Parser Value
+vDict context = 
+    succeed (
+        \name e dpsLst -> 
+            let
+                dps = vDictPairsListToVDictPairs ((name, e) :: dpsLst)
+            in
+                VDict dps
+    )
+        |. symbol "{"
+        |. spaces 
+        |= varName
+        |. spaces 
+        |. symbol "="
+        |. spaces
+        |= lazy (\_ -> value context)
+        |= vDictPairs context
+        |. symbol "}"
+        |. spaces
+
+vDictPairs : List Value -> Parser (List (String, Value))
+vDictPairs context =
+    loop [] <| vDictPairsHelper context 
+
+
+vDictPairsHelper : List Value -> List (String, Value) -> Parser (Step (List (String, Value)) (List (String, Value)))
+vDictPairsHelper context revDictPairs =
+    oneOf
+    [ succeed (\name e -> Loop ((name, e) :: revDictPairs))
+        |. symbol ","
+        |. spaces
+        |= varName
+        |. spaces
+        |. symbol "="
+        |. spaces 
+        |= lazy (\_ -> value context)
+    , succeed ()
+        |> map (\_ -> Done (List.reverse revDictPairs))
+    ]
 
 valueListToVCons : List Value -> Value
 valueListToVCons ls =
@@ -1327,6 +1374,12 @@ dictPairsListToEDictPairs lst =
         (ws, name, vexpr) :: rest ->
             EDictPair ws name vexpr (dictPairsListToEDictPairs rest)
 
+vDictPairsListToVDictPairs : List (String, Value) -> VDictPairs
+vDictPairsListToVDictPairs lst =
+    case lst of
+        [] -> VNothing
+        (n, v) :: rest ->
+            VDictPair n v (vDictPairsListToVDictPairs rest)
 
 -- For Debug
 
