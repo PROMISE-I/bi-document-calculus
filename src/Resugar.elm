@@ -93,6 +93,25 @@ resugar expr =
         EChar ws c -> EChar ws c
         
         ECons ws e1 e2 -> ECons ws (resugar e1) (resugar e2)
+
+        EDictDef ws dictPairs ->
+            let
+                dictPairs_ = resugarDictPairs dictPairs
+            in
+                EDictDef ws dictPairs_
+
+        EDictUpd ws e dictPairs ->
+            let
+                e_ = resugar e
+                dictPairs_ = resugarDictPairs dictPairs
+            in
+                EDictUpd ws e_ dictPairs_   
+
+        EField ws e fstr ->
+            let
+                e_ = resugar e
+            in
+                EField ws e_ fstr 
         
         EBTuple ws e1 e2 -> EBTuple ws (resugar e1) (resugar e2)
 
@@ -124,6 +143,17 @@ resugarBranch branch =
         BNSin ws n p e -> BNSin ws n p (resugar e)
         
         BCom ws b1 b2 -> BCom ws (resugarBranch b1) (resugarBranch b2)
+
+resugarDictPairs : EDictPairs -> EDictPairs
+resugarDictPairs dictPairs =
+    case dictPairs of 
+        ENothing -> ENothing
+        EDictPair ws n e restPairs ->
+            let 
+                e_ = resugar e
+                restPairs_ = resugarDictPairs restPairs
+            in
+                EDictPair ws n e_ restPairs_
 
 resugarTemplate : TplCtx -> Expr -> Result String Template
 resugarTemplate ctx expr =
@@ -167,7 +197,7 @@ resugarTemplate ctx expr =
                                 
                                 Result.Err info -> Result.Err info
                     
-                    _ -> Result.Err "Resugar Template Part Error: 02"
+                    _ -> Result.Err ("Resugar Template Part Error: 02" ++ Debug.toString e2)
 
             else if e1 == lamTplExpr then
                 case e2 of
