@@ -427,6 +427,25 @@ processBeforePrint expr env =
             in
                 ECons ws e1_ e2_
 
+        EDictDef ws dictPairs ->
+            let
+                dictPairs_ = processBeforePrintDictPairs dictPairs env
+            in
+                EDictDef ws dictPairs_
+
+        EDictUpd ws e dictPairs ->
+            let
+                e_ = processBeforePrint e env
+                dictPairs_ = processBeforePrintDictPairs dictPairs env
+            in
+                EDictUpd ws e_ dictPairs_   
+
+        EField ws e fstr ->
+            let
+                e_ = processBeforePrint e env
+            in
+                EField ws e_ fstr 
+
         EBPrim ws op e1 e2 ->
             let 
                 e1_ = processBeforePrint e1 env
@@ -516,6 +535,17 @@ processBranchesBeforePrint b env =
                 BCom ws b1_ b2_
 
         BSin _ _ _ -> b
+
+processBeforePrintDictPairs : EDictPairs -> List String -> EDictPairs
+processBeforePrintDictPairs dictPairs env =
+    case dictPairs of 
+        ENothing -> ENothing
+        EDictPair ws n e restPairs ->
+            let 
+                e_ = processBeforePrint e env
+                restPairs_ = processBeforePrintDictPairs restPairs env
+            in
+                EDictPair ws n e_ restPairs_
 
 
 -- processAfterParse: 给 case 的 branch 编号，BSin -> BNSin
@@ -2138,3 +2168,13 @@ findValueInDictPairs dps n =
                 val
             else 
                 findValueInDictPairs next n 
+
+filterEDictPairs : EDictPairs -> List String -> EDictPairs
+filterEDictPairs eps names =
+    case eps of
+        ENothing -> ENothing
+        EDictPair ws n e rest ->
+            if (List.any (\x -> x == n) names) then
+                EDictPair ws n e (filterEDictPairs rest names)
+            else 
+                filterEDictPairs rest names
