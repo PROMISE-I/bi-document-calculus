@@ -141,6 +141,7 @@ type ExprChilds
     | ECNil  
     | ECDictDef ECDictPairs
     | ECDictUpd ExprNode ECDictPairs
+    | ECField ExprNode 
     | ECBPrim ExprNode ExprNode
     | ECUPrim ExprNode
     | ECCase ExprNode ExprNode
@@ -172,6 +173,7 @@ type Expr
     | ENil WS
     | EDictDef WS EDictPairs
     | EDictUpd WS Expr EDictPairs 
+    | EField WS Expr String
     | EBPrim WS Bop Expr Expr
     | EUPrim WS Uop Expr
     | ECase WS Expr Branch
