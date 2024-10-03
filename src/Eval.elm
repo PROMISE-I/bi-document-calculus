@@ -205,11 +205,18 @@ eval venv expr =
         
         EDictUpd _ originDict dictPairs ->
             let
-                ecOriginDict = eval venv originDict
+                enOriginDict = eval venv originDict
                 (ecDictPairs, vDictPairs) = evalDictPairs venv dictPairs
-                v = dictUpdates (getValueFromExprNode ecOriginDict) vDictPairs
+                v = dictUpdates (getValueFromExprNode enOriginDict) vDictPairs
             in
-                (ECDictUpd ecOriginDict ecDictPairs, expr, { value = v })
+                (ECDictUpd enOriginDict ecDictPairs, expr, { value = v })
+
+        EField _ de fstr ->
+            let
+                enDict = eval venv de
+                v = fieldAccess (getValueFromExprNode enDict) fstr
+            in
+                (ECField enDict, expr, { value = v })
 
 
         EUPrim _ op e ->
@@ -491,3 +498,19 @@ dictUpdates originDict updPairs =
                 VDict (List.foldl dictUpdate ps vDictPairsList)
         
         _ -> VError "Error when update non dict value."
+
+fieldAccess : Value -> String -> Value
+fieldAccess vd fstr =
+    case vd of
+        VDict vdictPairs -> findValueInDictPairs vdictPairs fstr
+        _ -> VError "Error when access non dict value"
+
+findValueInDictPairs : VDictPairs -> String -> Value
+findValueInDictPairs dps n =
+    case dps of
+        VNothing -> VError <| "Error when access non exist key: " ++ n
+        VDictPair key val next ->
+            if key == n then
+                val
+            else 
+                findValueInDictPairs next n 
