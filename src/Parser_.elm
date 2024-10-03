@@ -7,6 +7,7 @@ import Parser.Extras exposing (..)
 import Parser.Expression exposing (..)
 import LangUtils exposing (unifyLineSeparator)
 import LangUtils exposing (changeWs)
+import Browser.Navigation exposing (back)
 
 
 mSpaces : Parser String
@@ -1155,6 +1156,8 @@ value context =
     , vFalse
     , backtrackable vNil
     , lazy (\_ -> (vList context))
+    , backtrackable <| vDictEmpty context
+    , backtrackable <| vDict context
     , backtrackable (vBtuple context)
     , vTtuple context
     , vChar
