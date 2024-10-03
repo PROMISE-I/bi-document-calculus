@@ -632,7 +632,25 @@ uneval venv expr newv diffs =
                     { venv = [] 
                     , expr = EError <| "Non Dict Value cannot update Dict Upd Expr Error: 18." 
                     }
-
+        
+        EField ws originDict n ->
+        -- TODO: Better performance, only track the record with name `n`
+            let 
+                oldVDict = getValueFromExprNode (eval venv originDict)
+            in
+                case oldVDict of
+                    VDict oldVDictPairs ->
+                        let
+                            newVDict = VDict <| vDictUpdate (n, newv) oldVDictPairs
+                            res = uneval venv originDict newVDict []
+                        in
+                            { venv = res.venv
+                            , expr = EField ws res.expr n
+                            }
+                    _ -> 
+                        { venv = []
+                        , expr = EError <| "Implementing Error: 01."
+                        }
 
         EBTuple ws e1 e2 ->
             let
@@ -1481,6 +1499,7 @@ eDictUpdates : Bool -> VEnv -> VDictPairs -> EDictPairs -> (VEnv, VDictPairs, ED
 eDictUpdates isAppend venv newVPairs oldEPairs =
     let
         newVPairsList = vDictPairsToList newVPairs
+        filteredOldEPairs = filterEDictPairs oldEPairs (List.map Tuple.first newVPairsList)
     in
         List.foldl (eDictUpdate isAppend venv) (venv, VNothing, oldEPairs) newVPairsList
 
