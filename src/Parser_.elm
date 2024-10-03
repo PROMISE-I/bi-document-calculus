@@ -345,7 +345,7 @@ aexpr =
     , list
     , backtrackable dictEmpty
     , backtrackable dictDef
-    , backtrackable dictUpd
+    , dictUpd
     , string
     , char
     , strTpl
@@ -442,17 +442,22 @@ dictDef =
 dictUpd : Parser Expr
 dictUpd =
     succeed (
-        \s1 originDict s2 dpsLst s3 ->
+        \s1 originDict s2 name s3 s4 e dpsLst s5 ->
             let
-                dps = dictPairsListToEDictPairs dpsLst
+                dps = dictPairsListToEDictPairs (((["", s3, s4], 0), name, e)::dpsLst)
             in
-                EDictUpd ([s1, s2, s3], 0) originDict dps
+                EDictUpd ([s1, s2, s5], 0) originDict dps
     )
         |. symbol "{"
         |= mSpaces 
         |= expr
         |. symbol "|"
         |= mSpaces
+        |= varName
+        |= mSpaces 
+        |. symbol "="
+        |= mSpaces
+        |= expr
         |= dictPairs
         |. symbol "}"
         |= mSpaces
