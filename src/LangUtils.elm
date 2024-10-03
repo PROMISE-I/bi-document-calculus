@@ -110,6 +110,16 @@ printAST expr =
         ENil _ ->
             ""
 
+        EDictDef ([ws1, ws2], _) dps ->
+            "{" ++ ws1 ++ 
+            (printEDictPairs dps) ++ 
+            "}" ++ ws2
+
+        EDictUpd ([ws1, ws2, ws3], _) e dps ->
+            "{" ++ ws1 ++ (printAST e) ++ 
+            "|" ++ ws2 ++ (printEDictPairs dps) ++
+            "}" ++ ws3
+
         EBPrim ([ws], _) op e1 e2 ->
             let
                 s1 =
@@ -269,6 +279,14 @@ printBranch b =
 
         _ ->
             "Print Error: 09."
+
+printEDictPairs : EDictPairs -> String
+printEDictPairs dps =
+    case dps of
+        ENothing -> ""
+        EDictPair ([ws1, ws2, ws3], _) nStr e rest ->
+            ws1 ++ nStr ++ ws2 ++ "=" ++ (printAST e) ++ "," ++ ws3 ++ (printEDictPairs rest)
+        _ -> "Print Error: 17."
 
 
 printTpl : Template -> String
