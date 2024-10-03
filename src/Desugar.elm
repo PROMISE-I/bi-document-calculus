@@ -90,6 +90,12 @@ desugar expr =
             in
                 EDictUpd ws de1 de2
 
+        EField ws e fstr ->
+            let
+                e1 = desugar e
+            in
+                EField ws e1 fstr
+
         EUPrim ws op e -> 
             let
                 de = desugar e

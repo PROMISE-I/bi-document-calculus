@@ -576,8 +576,13 @@ processAfterParse expr env =
                 e_ = processAfterParse e env
                 dictPairs_ = processAfterParseDictPairs dictPairs env
             in
-                EDictUpd ws e_ dictPairs_     
+                EDictUpd ws e_ dictPairs_   
 
+        EField ws e fstr ->
+            let
+                e_ = processAfterParse e env
+            in
+                EField ws e_ fstr              
 
         EBPrim ws op e1 e2 ->
             let 
