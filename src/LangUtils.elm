@@ -2254,3 +2254,14 @@ strLe lst1 lst2 =
         (VNil id1, VNil id2) -> True
 
         _ -> False -- unreachable
+
+filpCompOp : Bop -> Bop
+filpCompOp bop =
+    case bop of
+        Eq -> Ne
+        Ne -> Eq
+        Lt -> Ge
+        Gt -> Le
+        Le -> Gt
+        Ge -> Lt
+        op -> op

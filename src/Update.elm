@@ -9,7 +9,6 @@ import HtmlParser exposing (parseHtml)
 import Parser_ exposing (parse, parseVal)
 import Desugar exposing (..)
 import Resugar exposing (..)
-import Html exposing (th)
 
 
 updateCode : Model -> Code
@@ -290,7 +289,7 @@ uneval venv expr newv diffs =
                                                 
                                                 _       ->
                                                     { venv = []
-                                                    , expr = EError "Recursion Update Error: 01"
+                                                    , expr = EError <| "Recursion Update Error: 01 " ++ Debug.toString (head res1_venv)
                                                     }
                         
                         _ ->
@@ -1349,85 +1348,19 @@ arith ws e1 e2 venv newv op diffs =
 comp : WS -> Expr -> Expr -> VEnv -> Value -> Bop -> List (DiffOp Value) -> UnEvalRes
 comp ws e1 e2 venv newv op diffs =
     let
-        en1 = eval venv e1
-        v1 = getValueFromExprNode en1
-        
-        en2 = eval venv e2
-        v2 = getValueFromExprNode en2
+        en = eval venv (EBPrim ws op e1 e2)
+        oldv  = getValueFromExprNode en
+
+        newBOp = 
+            if oldv /= newv then
+                filpCompOp op
+            else 
+                op
+
     in
-    case newv of
-        VTrue ->
-            case op of
-                Eq ->
-                    let 
-                        (newv1, newv2) =
-                            case (v1, v2) of
-                                _ -> (VError "", VError "")
-                        
-                    in
-                    case (newv1, newv2) of
-                        (VError _, VError _) ->
-                            { venv = []
-                            , expr = EError "Missing Information, Cannot Infer: 01."
-                            }
-                        _ ->
-                            let
-                                v1Diffs = calcDiff v1 newv1
-                                v2Diffs = calcDiff v2 newv2
-                            in      
-                                checkChange venv ws op e1 e2 v1 v2 newv1 newv2 v1Diffs v2Diffs
-
-                _ ->
-                    let
-                        resEN = eval venv (EBPrim ws op e1 e2)
-                        res = getValueFromExprNode resEN
-                        
-                        newe =
-                            case res of
-                                VTrue -> EBPrim ws op e1 e2
-                                VFalse ->
-                                    case op of
-                                        Lt -> EBPrim ws Ge e1 e2
-                                        Gt -> EBPrim ws Le e1 e2
-                                        Le -> EBPrim ws Gt e1 e2
-                                        Ge -> EBPrim ws Lt e1 e2
-                                        _  ->
-                                            EError "Comparison Expression Modified Type Error: 01."
-                                _ ->
-                                    EError "Missing Information, Cannot Infer: 02."
-                    in
-                        { venv = venv
-                        , expr = newe
-                        } 
-
-        VFalse ->
-            let
-                resEN = eval venv (EBPrim ws op e1 e2)
-                res = getValueFromExprNode resEN
-                
-                newe =
-                    case res of
-                        VFalse -> EBPrim ws op e1 e2
-                        VTrue ->
-                            case op of
-                                Lt -> EBPrim ws Ge e1 e2
-                                Gt -> EBPrim ws Le e1 e2
-                                Le -> EBPrim ws Gt e1 e2
-                                Ge -> EBPrim ws Lt e1 e2
-                                Eq -> EError "Missing Information, Cannot Infer: 03."
-                                _  -> EError "Comparison Expression Modified Type Error: 02."
-                        _ ->
-                            EError "Missing Information, Cannot Infer: 04."
-            in
-                { venv = venv
-                , expr = newe
-                } 
-
-        _ ->
-            { venv = []
-            , expr = EError ("Comparison Expression Modified Type Error: 03." ++ (print newv))
-            }
-
+        { venv = venv
+        , expr = EBPrim ws newBOp e1 e2
+        }
 
 checkChange : VEnv -> WS -> Bop -> 
             Expr -> Expr -> Value -> Value -> Value -> Value -> 
