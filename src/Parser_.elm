@@ -943,7 +943,7 @@ operators =
 
 expr : Parser Expr
 expr =
-    buildExpressionParser operators (lazy <| \_ -> log "term" term)
+    buildExpressionParser operators (lazy <| \_ -> term)
 
 
 pvar : Parser Pattern
