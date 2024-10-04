@@ -2201,3 +2201,55 @@ filterEDictPairs eps names =
                 EDictPair ws n e (filterEDictPairs rest names)
             else 
                 filterEDictPairs rest names
+
+boolOp : Bool -> Value
+boolOp p =
+    if p then VTrue else VFalse
+
+strEq : Value -> Value -> Bool
+strEq lst1 lst2 =
+    case (lst1, lst2) of
+        (VCons id1 v1 vs1, VCons id2 v2 vs2) ->
+            v1 == v2 && (strEq vs1 vs2)  
+
+        (VCons id1 v1 vs1, VNil id2) -> False
+
+        (VNil id1, VCons id2 v2 vs2) -> False
+
+        (VNil id1, VNil id2) -> id1 == id2
+
+        _ -> False -- unreachable
+
+strLt : Value -> Value -> Bool
+strLt lst1 lst2 =
+    case (lst1, lst2) of
+        (VCons id1 v1 vs1, VCons id2 v2 vs2) ->
+            case (v1, v2) of
+                (VChar c1, VChar c2) ->
+                    c1 < c2 || (c1 == c2 &&  (strLt vs1 vs2))  
+                _ -> False -- unreachable
+
+        (VCons id1 v1 vs1, VNil id2) -> False
+
+        (VNil id1, VCons id2 v2 vs2) -> True
+
+        (VNil id1, VNil id2) -> False
+
+        _ -> False -- unreachable
+            
+strLe : Value -> Value -> Bool 
+strLe lst1 lst2 =
+    case (lst1, lst2) of
+        (VCons id1 v1 vs1, VCons id2 v2 vs2) ->
+            case (v1, v2) of
+                (VChar c1, VChar c2) ->
+                    c1 < c2 || (c1 == c2 &&  (strLe vs1 vs2))  
+                _ -> False -- unreachable
+
+        (VCons id1 v1 vs1, VNil id2) -> False
+
+        (VNil id1, VCons id2 v2 vs2) -> True
+
+        (VNil id1, VNil id2) -> True
+
+        _ -> False -- unreachable

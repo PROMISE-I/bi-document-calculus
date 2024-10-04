@@ -323,6 +323,18 @@ eval venv expr =
                                 
                                 _ ->
                                     VError "Operand Error: 04"
+                        
+                        VChar c1 ->
+                            case v2 of
+                                VChar c2 ->
+                                    case op of
+                                        Eq -> boolOp (c1 == c2)
+                                        Lt -> boolOp (c1 < c2)
+                                        Gt -> boolOp (c1 > c2)
+                                        Le -> boolOp (c1 <= c2)
+                                        Ge -> boolOp (c1 >= c2)
+                                        _  -> VError "Logical Operation Error: 04"
+                                _ -> VError "Operand Error: 10"
 
                         VCons id1 _ _ ->
                             case v2 of
@@ -442,29 +454,31 @@ floatOp op n1 n2 =
         _  -> VError "Logical Operation Error: 03"
 
 
-boolOp : Bool -> Value
-boolOp p =
-    if p then VTrue else VFalse
+
 
 listOp : Int -> Int -> Bop -> Value -> Value -> Value
 listOp id1 id2 op v1 v2 =
-    case op of 
-        Cat -> 
+    case (op, id1, id2) of 
+        (Cat, _, _) -> 
             if id1 == id2 then
                 append v1 v2
             else 
                 VError "Operand Error: 07"
         
-        Add -> 
+        (Add, _, _) -> 
             if id1 == id2 then
                 append v1 v2
             else 
                 VError "Operand Error: 07"
         
-        -- list eq
-        -- Eq -> 
+        -- string eq
+        (Eq, 1, 1) -> boolOp <| strEq v1 v2
+        (Lt, 1, 1) -> boolOp <| strLt v1 v2
+        (Gt, 1, 1) -> boolOp <| not (strLe v1 v2)
+        (Le, 1, 1) -> boolOp <| strLe v1 v2
+        (Ge, 1, 1) -> boolOp <| not (strLt v1 v2)
 
-        _ -> VError ("Operand Error: 06" ++ Debug.toString op)
+        _ -> VError ("Operand Error: 06" ++ Debug.toString op ++ ";"  ++ Debug.toString id1 ++ ";" ++ Debug.toString id2)
 
 evalDictPairs : VEnv -> EDictPairs -> (ECDictPairs, VDictPairs)
 evalDictPairs venv ed = 
