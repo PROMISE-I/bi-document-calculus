@@ -266,6 +266,7 @@ eval venv expr =
                                         DDiv -> VFloat (Round.roundNumCom 2 
                                                         <| ((toFloat n1) / (toFloat n2)))
                                         Eq -> boolOp (n1 == n2)
+                                        Ne -> boolOp (n1 /= n2)
                                         Lt -> boolOp (n1 < n2)
                                         Gt -> boolOp (n1 > n2)
                                         Le -> boolOp (n1 <= n2)
@@ -296,12 +297,16 @@ eval venv expr =
                                     case op of
                                     And -> VTrue
                                     Or  -> VTrue
+                                    Eq  -> VTrue 
+                                    Ne  -> VFalse
                                     _   -> VError "Arithmetic Error: 02"
                                 
                                 VFalse ->
                                     case op of
                                         And -> VFalse
                                         Or  -> VTrue
+                                        Eq  -> VFalse
+                                        Ne  -> VTrue
                                         _   -> VError "Arithmetic Error: 03"
                                 
                                 _ ->
@@ -313,12 +318,16 @@ eval venv expr =
                                     case op of
                                         And -> VFalse
                                         Or  -> VTrue
+                                        Eq  -> VFalse
+                                        Ne  -> VTrue
                                         _   -> VError "Arithmetic Error: 04"
                                 
                                 VFalse ->
                                     case op of
                                         And -> VFalse
                                         Or  -> VFalse
+                                        Eq  -> VTrue
+                                        Ne  -> VFalse
                                         _   -> VError "Arithmetic Error: 05"
                                 
                                 _ ->
@@ -329,6 +338,7 @@ eval venv expr =
                                 VChar c2 ->
                                     case op of
                                         Eq -> boolOp (c1 == c2)
+                                        Ne -> boolOp (c1 /= c2)
                                         Lt -> boolOp (c1 < c2)
                                         Gt -> boolOp (c1 > c2)
                                         Le -> boolOp (c1 <= c2)
@@ -447,6 +457,7 @@ floatOp op n1 n2 =
         Div -> VFloat (n1 / n2)
         DDiv -> VFloat (n1 / n2)
         Eq -> boolOp (n1 == n2)
+        Ne -> boolOp (n1 /= n2)
         Lt -> boolOp (n1 < n2)
         Gt -> boolOp (n1 > n2)
         Le -> boolOp (n1 <= n2)
@@ -473,6 +484,7 @@ listOp id1 id2 op v1 v2 =
         
         -- string eq
         (Eq, 1, 1) -> boolOp <| strEq v1 v2
+        (Ne, 1, 1) -> boolOp <| not (strEq v1 v2)
         (Lt, 1, 1) -> boolOp <| strLt v1 v2
         (Gt, 1, 1) -> boolOp <| not (strLe v1 v2)
         (Le, 1, 1) -> boolOp <| strLe v1 v2

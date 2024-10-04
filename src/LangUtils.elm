@@ -138,6 +138,7 @@ printAST expr =
                         Div -> "//"
                         DDiv -> "/"
                         Eq  -> "=="
+                        Ne  -> "/="
                         Lt  -> "<"
                         Gt  -> ">"
                         Le  -> "<="

@@ -933,7 +933,7 @@ operators =
     , [Infix (bopParser "<=" Le) AssocNone
     , Infix (bopParser ">=" Ge) AssocNone]
     
-    , [Infix (bopParser "==" Eq) AssocNone]
+    , [Infix (bopParser "==" Eq) AssocNone, Infix (bopParser "/=" Ne) AssocNone]
     , [Infix (bopParser "&&" And) AssocLeft]
     , [Infix (bopParser "||" Or) AssocLeft]
 
