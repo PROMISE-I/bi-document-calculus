@@ -38,15 +38,15 @@ node_ =
 
 int_ : Parser Expr
 int_ =
-    succeed (\n s-> EInt ([s], defaultId) n)
-    |= number
-        { int = Just identity
-        , hex = Just identity
-        , octal = Just identity
-        , binary = Just identity
-        , float = Nothing
-        }
-    |= mSpaces
+    oneOf 
+        [ succeed (\n s -> EInt ([s], defaultId) -n)
+            |. symbol "-"
+            |= int
+            |= mSpaces
+        , succeed (\n s -> EInt ([s], defaultId) n)
+            |= int
+            |= mSpaces
+        ]
 
 
 float_ : Parser Expr
@@ -943,7 +943,7 @@ operators =
 
 expr : Parser Expr
 expr =
-    buildExpressionParser operators (lazy <| \_ -> term)
+    buildExpressionParser operators (lazy <| \_ -> log "term" term)
 
 
 pvar : Parser Pattern
