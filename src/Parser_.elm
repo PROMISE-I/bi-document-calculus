@@ -7,7 +7,6 @@ import Parser.Extras exposing (..)
 import Parser.Expression exposing (..)
 import LangUtils exposing (unifyLineSeparator)
 import LangUtils exposing (changeWs)
-import Browser.Navigation exposing (back)
 
 
 mSpaces : Parser String
@@ -33,8 +32,8 @@ node_ =
     |= mSpaces
     |= varName
     |= mSpaces
-    |= lazy (\_ -> aexpr)
-    |= lazy (\_ -> aexpr)
+    |= lazy (\_ -> expr)
+    |= lazy (\_ -> expr)
 
 
 int_ : Parser Expr
@@ -697,7 +696,7 @@ tplNodeAttr =
         |= mSpaces
         |. symbol "="
         |= mSpaces
-        |= aexpr
+        |= expr
 
 
 tplExpr : TplCtx -> Parser TplPart
